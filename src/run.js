@@ -7,7 +7,6 @@ export const client = new DeliverooApi(
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjA3MTg1ZTA5YmZlIiwibmFtZSI6ImRhbmllbCIsImlhdCI6MTcxNDQyMTc5MH0.XemKVJ2TGJ70go2oN1oiQKKpMGF-JFOwSEitlTpw4FA",
 )
 
-
 /** @type Me */
 const me = {}
 
@@ -39,53 +38,58 @@ client.onMap((width, height, tiles) => {
     }
 })
 
+const parcels = new Map()
+client.onParcelsSensing(async (perceived_parcels) => {
+    for (const p of perceived_parcels) {
+        parcels.set(p.id, p)
+    }
+})
+
+const deliveries = []
+client.onTile(async (x, y, delivery, parcel) => {
+    if (grid.length == 0) await sleep(1000)
+
+    if (delivery) {
+        deliveries.push({ x: x, y: y })
+        grid[x][y] = 2
+    }
+})
+
+const noZone = []
+client.onNotTile(async (x, y) => {
+    if (grid.length == 0) await sleep(1000)
+     
+    noZone.push({ x: x, y: y })
+    grid[x][y] = 0
+})
+
 client.onConnect(async () => {
     let { astar } = await import("./path_finding.js")
-
-    const parcels = new Map()
-    client.onParcelsSensing(async (perceived_parcels) => {
-        for (const p of perceived_parcels) {
-            parcels.set(p.id, p)
-        }
-    })
-
-    const deliveries = []
-    client.onTile(async (x, y, delivery, parcel) => {
-        if (grid.length == 0) await sleep(1000)
-
-        if (delivery) {
-            console.log(x + " " + y)
-            deliveries.push({ x: x, y: y })
-            grid[x][y] = 2
-        }
-    })
-
-    const noZone = []
-    client.onNotTile(async (x, y) => {
-        if (grid.length == 0) await sleep(1000)
-
-        noZone.push({ x: x, y: y })
-        grid[x][y] = 0
-    })
 
     /**
      * BDI loop
      */
     function agentLoop() {
+        /** @type Array<Option> */
         const options = []
-        for (const parcel of parcels.values())
-            if (!parcel.carriedBy) options.push(["go_pick_up", parcel.x, parcel.y, parcel.id])
+        for (const parcel of parcels.values()) {
+            if (!parcel.carriedBy) {
+                options.push({ action: "go_pick_up", x: parcel.x, y: parcel.y, id: parcel.id })
+            }
+        }
         // myAgent.push( [ 'go_pick_up', parcel.x, parcel.y, parcel.id ] )
 
         /**
          * Options filtering
          */
+
+        /** @type Option */
         let best_option
+
         let nearest = Number.MAX_VALUE
         for (const option of options) {
-            if (option[0] == "go_pick_up") {
-                let [go_pick_up, x, y, id] = option
-                let current_d = distance({ x, y }, me)
+            if (option.action == "go_pick_up") {
+                let current_d = distance(me, option)
                 if (current_d < nearest) {
                     best_option = option
                     nearest = current_d
@@ -98,10 +102,12 @@ client.onConnect(async () => {
          */
         // if (best_option) myAgent.push(best_option)
 
-        console.log("unica cosa imortante, il path finding")
-        console.log(me)
-        console.log(best_option)
-        console.log(astar(me, best_option, grid))
+        if (best_option) {
+            console.log(me)
+            console.log(best_option)
+            console.log(astar(me, { x: best_option.x, y: best_option.y }, grid))
+            console.log()
+        }
 
         /**
          * Options

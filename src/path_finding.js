@@ -38,19 +38,22 @@ function reconstructPath(cameFrom, current) {
 function getNeighbors(point, grid, height, width) {
     const neighbors = []
 
-    // TODO: it only checks if the block is walkable, but it should also check there is no other robot
-    if (point.x > 0 && grid[point.x - 1][point.y] !== 0) {
-        neighbors.push({ x: point.x - 1, y: point.y })
-    }
-    if (point.x < width - 1 && grid[point.x + 1][point.y] !== 0) {
-        neighbors.push({ x: point.x + 1, y: point.y })
-    }
-    if (point.y > 0 && grid[point.x][point.y - 1] !== 0) {
-        neighbors.push({ x: point.x, y: point.y - 1 })
-    }
-    if (point.y < height - 1 && grid[point.x][point.y + 1] !== 0) {
-        neighbors.push({ x: point.x, y: point.y + 1 })
-    }
+    try {
+        if (point.x > 0 && grid[point.x - 1][point.y] !== 0) {
+            neighbors.push({ x: point.x - 1, y: point.y })
+        }
+        if (point.x < width - 1 && grid[point.x + 1][point.y] !== 0) {
+            neighbors.push({ x: point.x + 1, y: point.y })
+        }
+        if (point.y > 0 && grid[point.x][point.y - 1] !== 0) {
+            neighbors.push({ x: point.x, y: point.y - 1 })
+        }
+        if (point.y < height - 1 && grid[point.x][point.y + 1] !== 0) {
+            neighbors.push({ x: point.x, y: point.y + 1 })
+        }
+    } catch (e) {
+        console.error(e)
+    } 
 
     return neighbors
 }
@@ -65,25 +68,35 @@ function astar(start, goal, grid) {
     const width = grid.length
     const height = grid[0].length
 
-    // The set of nodes already evaluated
-    var openSet = new Heap()
-    openSet.init([start])
-
+    /** @type {Map<Point, Point>} */
     var cameFrom = new Map()
 
-    // For node n, gScore[n] is the cost of the cheapest path from start to n currently known.
+    /**
+     * Represent the score of the cheapest path from start to n currently known.
+     * @type {Map<Point, number>}
+     */
     var gScore = new Map()
     gScore.set(start, 0)
 
-    // For node n, fScore[n] := gScore[n] + h(n)
-    // fScore[n] represents our current best guess as to how short a path from start to finish can be if it goes through n.
+    /**
+     * Represents our current best guess as to how short a path from start to finish can be if it goes through n.
+     * @type {Map<Point, number>}
+     */
     var fScore = new Map()
     fScore.set(start, h(start, goal))
 
-    while (openSet.size() > 0) {
+    const customPriorityComparator = (a, b) => {
+        fScore.get(a) < fScore.get(b)
+    }
+
+    /** @type {Heap<Point>} */
+    var openSet = new Heap(customPriorityComparator)
+    openSet.init([start])
+
+    while (openSet.size() > 0 && openSet.size() < height * width) {
         var current = openSet.pop()
 
-        if (current === goal) {
+        if (current.x == goal.x && current.y == goal.y) {
             return reconstructPath(cameFrom, current)
         }
 
