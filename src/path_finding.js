@@ -1,91 +1,109 @@
-import { client } from "./run.js"
+import { Heap } from "heap-js"
+import { distance } from "./utils.js"
+import "./types.js"
 
-function distance({ x: x1, y: y1 }, { x: x2, y: y2 }) {
-    const dx = Math.abs(Math.round(x1) - Math.round(x2))
-    const dy = Math.abs(Math.round(y1) - Math.round(y2))
-    return dx + dy
+/**
+ * Heuristic function that estimates the cost to reach goal from node n
+ * @param {Point} point
+ * @param {Point} goal
+ * @returns {number} score of the euristc function
+ */
+function h(point, goal) {
+    let x = point.x
+    let y = point.y
+    return distance(goal, { x, y })
 }
 
-function reconstruct_path(cameFrom, current) {
-    const total_path = [current]
+/**
+ * @param {Map<Point, Point>} cameFrom
+ * @param {Point} current
+ * @returns {Array<Point>} total_path
+ */
+function reconstructPath(cameFrom, current) {
+    const totalPath = [current]
     while (cameFrom.has(current)) {
         current = cameFrom.get(current)
-        total_path = [current].concat(total_path) // prepend
-        console.log(total_path)
+        totalPath.unshift(current)
     }
-    return total_path
+    return totalPath
 }
 
-function a_star(start, goal, h) {
-    // The set of discovered nodes that may need to be (re-)expanded.
-    // Initially, only the start node is known.
-    // This is usually implemented as a min-heap or priority queue rather than a hash-set.
-    const openSet = [start]
+/**
+ * @param {Point} point
+ * @param {Array<Array<number>>} grid
+ * @param {number} height
+ * @param {number} width
+ * @returns {Array<Point>} neighbors
+ */
+function getNeighbors(point, grid, height, width) {
+    const neighbors = []
 
-    // For node n, cameFrom[n] is the node immediately preceding it on the cheapest path from the start
-    // to n currently known.
-    const cameFrom = new Map()
+    // TODO: it only checks if the block is walkable, but it should also check there is no other robot
+    if (point.x > 0 && grid[point.x - 1][point.y] !== 0) {
+        neighbors.push({ x: point.x - 1, y: point.y })
+    }
+    if (point.x < width - 1 && grid[point.x + 1][point.y] !== 0) {
+        neighbors.push({ x: point.x + 1, y: point.y })
+    }
+    if (point.y > 0 && grid[point.x][point.y - 1] !== 0) {
+        neighbors.push({ x: point.x, y: point.y - 1 })
+    }
+    if (point.y < height - 1 && grid[point.x][point.y + 1] !== 0) {
+        neighbors.push({ x: point.x, y: point.y + 1 })
+    }
+
+    return neighbors
+}
+
+/**
+ * @param {Point} start
+ * @param {Point} goal
+ * @param {Array<Array<number>>} grid
+ * @returns {Array<Point>} path
+ */
+function astar(start, goal, grid) {
+    const width = grid.length
+    const height = grid[0].length
+
+    // The set of nodes already evaluated
+    var openSet = new Heap()
+    openSet.init([start])
+
+    var cameFrom = new Map()
 
     // For node n, gScore[n] is the cost of the cheapest path from start to n currently known.
-    const gScore = new Map() // default value of Infinity
-    gScore[start] = 0
+    var gScore = new Map()
+    gScore.set(start, 0)
 
-    // For node n, fScore[n] := gScore[n] + h(n). fScore[n] represents our current best guess as to
-    // how cheap a path could be from start to finish if it goes through n.
-    const fScore = new Map() // default value of Infinity
-    fScore[start] = 0 + h(start)
-    console.log(openSet)
-    while (openSet.length > 1)
-        // openSet is not empty
-        // This operation can occur in O(Log(N)) time if openSet is a min-heap or a priority queue
-        openSet.sort((a, b) => h(a) - h(b))
-    //let current = openSet[0] // the node in openSet having the lowest fScore[] value
-    let current = openSet.shift()
-    console.log(openSet)
-    if (h(current) == 0) return reconstruct_path(cameFrom, current)
-    console.log("VAMOS VCARB")
-    let neighbors = new Array(
-        { x: current.x + 1, y: current.y },
-        { x: current.x - 1, y: current.y },
-        { x: current.x, y: current.y + 1 },
-        { x: current.x, y: current.y - 1 },
-    )
-    //neighbors = neighbors.filter((e) => map[neighbor.x][neighbor.y])
-    console.log(neighbors)
-    for (const neighbor of neighbors) {
-        // each neighbor of current
-        // d(current,neighbor) is the weight of the edge from current to neighbor
-        // tentative_gScore is the distance from start to the neighbor through current
-        let tentative_gScore = gScore[current] + 1
-        if (tentative_gScore < (gScore[neighbor] || Number.MAX_VALUE)) {
-            // This path to neighbor is better than any previous one. Record it!
-            cameFrom.set(neighbor, current)
-            gScore.set(neighbor, tentative_gScore)
-            fScore.set(neighbor, tentative_gScore + h(neighbor))
-            if (!openSet.includes(neighbor))
-                // neighbor not in openSet
-                openSet.push(neighbor)
+    // For node n, fScore[n] := gScore[n] + h(n)
+    // fScore[n] represents our current best guess as to how short a path from start to finish can be if it goes through n.
+    var fScore = new Map()
+    fScore.set(start, h(start, goal))
+
+    while (openSet.size() > 0) {
+        var current = openSet.pop()
+
+        if (current === goal) {
+            return reconstructPath(cameFrom, current)
+        }
+
+        for (let neighbor of getNeighbors(current, grid, height, width)) {
+            // In our case the distance between two nodes is always 1
+            var tentativeGScore = gScore.get(current) + 1
+
+            if (!gScore.has(neighbor) || tentativeGScore < gScore.get(neighbor)) {
+                cameFrom.set(neighbor, current)
+                gScore.set(neighbor, tentativeGScore)
+                fScore.set(neighbor, gScore.get(neighbor) + h(neighbor, goal))
+
+                if (!openSet.contains(neighbor)) {
+                    openSet.add(neighbor)
+                }
+            }
         }
     }
 
-    // Open set is empty but goal was never reached
     return []
 }
 
-const start = { x: 4, y: 12 }
-const goal = { x: 10, y: 10 }
-
-function h(e) {
-    let x = e.x
-    let y = e.y
-    const dis = distance(goal, { x, y })
-    console.log(dis)
-    return dis
-}
-
-const path = a_star(start, goal, h)
-
-for (let i = 0; i < path.length; i++) {
-    const element = path[i]
-    console.log(i + " move " + " " + element.x + "," + element.y)
-}
+export { astar }
