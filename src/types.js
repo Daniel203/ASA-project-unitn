@@ -3,11 +3,11 @@
  * @property {number} x
  * @property {number} y
  */
- 
+
 /**
  * @typedef {Object} Me
  * @property {string} id
- * @property {string} name 
+ * @property {string} name
  * @property {number} x
  * @property {number} y
  * @property {number} score
@@ -19,4 +19,23 @@
  * @property {string} action
  * @property {number} x
  * @property {number} y
+ * @property {number} value
+ */
+
+/**
+ * @typedef {Object} Parcel
+ * @property {string} id
+ * @property {number} x
+ * @property {number} y
+ * @property {string} carriedBy
+ * @property {number} reward
+ */
+
+/**
+ * @typedef {Object} Rival
+ * @property {string} id
+ * @property {string} name
+ * @property {number} x
+ * @property {number} y
+ * @property {number} score
  */

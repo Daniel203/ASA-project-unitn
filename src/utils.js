@@ -19,10 +19,15 @@ export function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+/**
+ * @param {Array<Point>} path
+ * @returns {Array<string>} the directions to follow in order to follow the path
+ */
 export function getDirections(path) {
     const directions = []
     let x = path[0].x
     let y = path[0].y
+
     path.forEach((coord) => {
         if (x == coord.x - 1) {
             directions.push("right")
@@ -38,18 +43,29 @@ export function getDirections(path) {
             y -= 1
         }
     })
+
     return directions
 }
 
-export function getScoreOption(parcel, dist, val, rivals) {
-    const scoreDistance = 0.4
-    const scoreValue = 0.3
-    const scoreRivals = 0.3
+/**
+ * @param {Parcel} parcel
+ * @param {number} distance
+ * @param {Map<string, Rival>} rivals
+ * @returns {number} the score given to the option
+ */
+export function getOptionScore(parcel, dist, rivals) {
+    const distanceWeight = 4
+    const valueWeight = 3
+    const rivalsWeight = 3
     let score = 0
-    rivals.forEach((rival) => {
-        let d = distance({ x: parcel.x, y: parcel.y }, { x: rival.x, y: rival.y })
-        score += d
-    })
-    score = score * scoreRivals + dist * scoreDistance + val * scoreValue
+
+    if (rivals.size > 0) {
+        const nearestRival = [...rivals.values()].sort(
+            (a, b) => distance(parcel, a) - distance(parcel, b),
+        )[0]
+        score = distance(parcel, nearestRival)
+    }
+
+    score = score * rivalsWeight + dist * distanceWeight + parcel.value * valueWeight
     return score
 }

@@ -20,7 +20,6 @@ function h(point, goal) {
  * @returns {Array<Point>} total_path
  */
 function reconstructPath(cameFrom, current) {
-    console.log("###########RecostructPath###############")
     const totalPath = [current]
     while (cameFrom.has(current)) {
         current = cameFrom.get(current)
