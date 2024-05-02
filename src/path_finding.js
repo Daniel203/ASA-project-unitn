@@ -37,19 +37,21 @@ function reconstructPath(cameFrom, current) {
  */
 function getNeighbors(point, grid, height, width) {
     const neighbors = []
+    var x = point.x
+    var y = point.y
 
     try {
-        if (point.x > 0 && grid[point.x - 1][point.y] !== 0) {
-            neighbors.push({ x: point.x - 1, y: point.y })
+        if (x > 0 && grid[x - 1][y] !== 0) {
+            neighbors.push({ x: x - 1, y: y })
         }
-        if (point.x < width - 1 && grid[point.x + 1][point.y] !== 0) {
-            neighbors.push({ x: point.x + 1, y: point.y })
+        if (x < width - 1 && grid[x + 1][y] !== 0) {
+            neighbors.push({ x: x + 1, y: y })
         }
-        if (point.y > 0 && grid[point.x][point.y - 1] !== 0) {
-            neighbors.push({ x: point.x, y: point.y - 1 })
+        if (y > 0 && grid[x][y - 1] !== 0) {
+            neighbors.push({ x: x, y: y - 1 })
         }
-        if (point.y < height - 1 && grid[point.x][point.y + 1] !== 0) {
-            neighbors.push({ x: point.x, y: point.y + 1 })
+        if (y < height - 1 && grid[x][y + 1] !== 0) {
+            neighbors.push({ x: x, y: y + 1 })
         }
     } catch (e) {
         console.error(e)
@@ -65,6 +67,15 @@ function getNeighbors(point, grid, height, width) {
  * @returns {Array<Point>} path
  */
 function astar(start, goal, grid) {
+    // check if the start and goal are integer and not float
+    if (start.x % 1 !== 0 || start.y % 1 !== 0) {
+        return []
+    }
+
+    if (goal.x % 1 !== 0 || goal.y % 1 !== 0) {
+        return []
+    }
+
     const width = grid.length
     const height = grid[0].length
 
@@ -86,21 +97,23 @@ function astar(start, goal, grid) {
     fScore.set(start, h(start, goal))
 
     const customPriorityComparator = (a, b) => {
-        fScore.get(a) < fScore.get(b)
+        return fScore.get(a) - fScore.get(b)
     }
 
     /** @type {Heap<Point>} */
-    var openSet = new Heap(customPriorityComparator)
-    openSet.init([start])
+    var openHeap = new Heap(customPriorityComparator)
+    openHeap.init([start])
 
-    while (openSet.size() > 0 && openSet.size() < height * width) {
-        var current = openSet.pop()
+    // check that the size is less than height * width to avoid infinite loop
+    while (openHeap.size() > 0 && openHeap.size() < height * width) {
+        var current = openHeap.pop()
 
         if (current.x == goal.x && current.y == goal.y) {
             return reconstructPath(cameFrom, current)
         }
 
-        for (let neighbor of getNeighbors(current, grid, height, width)) {
+        const neighbors = getNeighbors(current, grid, height, width)
+        for (let neighbor of neighbors) {
             // In our case the distance between two nodes is always 1
             var tentativeGScore = gScore.get(current) + 1
 
@@ -109,8 +122,8 @@ function astar(start, goal, grid) {
                 gScore.set(neighbor, tentativeGScore)
                 fScore.set(neighbor, gScore.get(neighbor) + h(neighbor, goal))
 
-                if (!openSet.contains(neighbor)) {
-                    openSet.add(neighbor)
+                if (!openHeap.contains(neighbor)) {
+                    openHeap.add(neighbor)
                 }
             }
         }
