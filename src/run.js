@@ -1,5 +1,5 @@
 import { DeliverooApi } from "@unitn-asa/deliveroo-js-client"
-import { distance, sleep } from "./utils.js"
+import { distance, sleep, getDirections, getScoreOption } from "./utils.js"
 import "./types.js"
 
 export const client = new DeliverooApi(
@@ -24,6 +24,13 @@ client.onYou(({ id, name, x, y, score }) => {
     me.x = x
     me.y = y
     me.score = score
+})
+
+const rivals = new Map()
+client.onAgentsSensing(async (rival) => {
+    for (const p of rival) {
+        rivals.set(p.id, p)
+    }
 })
 
 client.onMap((width, height, tiles) => {
@@ -58,7 +65,7 @@ client.onTile(async (x, y, delivery, parcel) => {
 const noZone = []
 client.onNotTile(async (x, y) => {
     if (grid.length == 0) await sleep(1000)
-     
+
     noZone.push({ x: x, y: y })
     grid[x][y] = 0
 })
@@ -69,12 +76,18 @@ client.onConnect(async () => {
     /**
      * BDI loop
      */
-    function agentLoop() {
+    async function agentLoop() {
         /** @type Array<Option> */
         const options = []
         for (const parcel of parcels.values()) {
             if (!parcel.carriedBy) {
-                options.push({ action: "go_pick_up", x: parcel.x, y: parcel.y, id: parcel.id })
+                options.push({
+                    action: "go_pick_up",
+                    x: parcel.x,
+                    y: parcel.y,
+                    id: parcel.id,
+                    value: parcel.reward,
+                })
             }
         }
         // myAgent.push( [ 'go_pick_up', parcel.x, parcel.y, parcel.id ] )
@@ -89,7 +102,9 @@ client.onConnect(async () => {
         let nearest = Number.MAX_VALUE
         for (const option of options) {
             if (option.action == "go_pick_up") {
-                let current_d = distance(me, option)
+                let dist = distance(me, option)
+                let current_d = getScoreOption(option, dist, option.value, rivals)
+                console.log(current_d)
                 if (current_d < nearest) {
                     best_option = option
                     nearest = current_d
@@ -105,8 +120,20 @@ client.onConnect(async () => {
         if (best_option) {
             console.log(me)
             console.log(best_option)
-            console.log(astar(me, { x: best_option.x, y: best_option.y }, grid))
+            const path = astar(me, { x: best_option.x, y: best_option.y }, grid)
+            path.push({ x: me.x, y: me.y })
+            console.log(path)
             console.log()
+            const directions = getDirections(path)
+            for (const direction of directions) {
+                for (const delivery in deliveries.values) {
+                    if (me.x == delivery.x && me.y == delivery.y) {
+                        await client.putdown()
+                    }
+                }
+                await client.move(direction)
+            }
+            await client.pickup()
         }
 
         /**

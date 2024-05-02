@@ -20,6 +20,7 @@ function h(point, goal) {
  * @returns {Array<Point>} total_path
  */
 function reconstructPath(cameFrom, current) {
+    console.log("###########RecostructPath###############")
     const totalPath = [current]
     while (cameFrom.has(current)) {
         current = cameFrom.get(current)
@@ -55,7 +56,7 @@ function getNeighbors(point, grid, height, width) {
         }
     } catch (e) {
         console.error(e)
-    } 
+    }
 
     return neighbors
 }
