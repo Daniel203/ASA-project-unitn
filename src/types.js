@@ -32,6 +32,12 @@
  */
 
 /**
+ * @typedef {Object} Delivery
+ * @property {number} x
+ * @property {number} y
+ */
+
+/**
  * @typedef {Object} Rival
  * @property {string} id
  * @property {string} name

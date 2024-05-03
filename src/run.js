@@ -1,5 +1,5 @@
 import { DeliverooApi } from "@unitn-asa/deliveroo-js-client"
-import { distance, sleep, getDirections, getOptionScore } from "./utils.js"
+import { distance, sleep, getDirections, getOptionScore, getDeliveryNear } from "./utils.js"
 import "./types.js"
 import { astar } from "./path_finding.js"
 
@@ -113,7 +113,7 @@ async function agentLoop() {
     /** @type Option */
     let bestOptionPickUp
     let bestScorePickUp = 0
-
+    let bestOption
     for (const option of options) {
         if (option.action == "go_pick_up") {
             let dist = distance(me, option)
@@ -133,15 +133,20 @@ async function agentLoop() {
             myParcels.length > 0 ? myParcels.map((p) => p.reward).reduce((a, b) => a + b) : 0
 
         if (bestOptionPickUp) {
+            //Value - distanza + valorePacchetto - distanzadaldeliverypiùvicino
+            //TODO: add rivals
+            let minDistanceDel = getDeliveryNear(deliveries, bestOptionPickUp)
             potentialScorePickUp =
                 actualScoreMyParcels -
                 distance(me, bestOptionPickUp) * myParcels.length +
-                bestOptionPickUp.value
+                bestOptionPickUp.value -
+                minDistanceDel
         }
 
         if (bestOptionPutDown) {
-            potentialScorePutDown =
-                actualScoreMyParcels - (distance(me, bestOptionPutDown) * myParcels.length) / 2
+            //Value - distanza
+            console.log("actualScoreMyParcels: " + actualScoreMyParcels)
+            potentialScorePutDown = actualScoreMyParcels - distance(me, bestOptionPutDown)
         }
 
         console.log(
@@ -149,10 +154,13 @@ async function agentLoop() {
         )
         await sleep(1000)
         //myAgent.push(best_option)
+        let bestOption =
+            potentialScorePickUp > potentialScorePutDown
+                ? potentialScorePickUp
+                : potentialScorePutDown
     }
-
-    /* TODO: da spostare nella parte di plans
-    if (best_option) {
+    /*TODO: da spostare nella parte di plans
+    if (bestOption) {
         const path = astar(me, { x: best_option.x, y: best_option.y }, grid)
         path.push({ x: me.x, y: me.y })
 
@@ -166,8 +174,7 @@ async function agentLoop() {
             await client.move(direction)
         }
         await client.pickup()
-    }
-    */
+    }*/
 }
 
 client.onParcelsSensing(agentLoop)
