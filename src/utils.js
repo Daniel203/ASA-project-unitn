@@ -71,20 +71,17 @@ export function getOptionScore(parcel, dist, rivals) {
 }
 
 /**
- * @param {Delivery} deliveries
- * @param {Parcel} parcel
- * @returns {Delivery} delivery more nearest
+ * @param {Point} point - the starting point
+ * @param {Array<Delivery>}  deliveries
+ * @returns {Delivery} nearest delivery
  * @returns {number} the best distance between delivery and parcel
  */
-export function getDeliveryNear(deliveries, parcel) {
+export function getNearestDelivery(point, deliveries) {
     let nearest = Number.MAX_VALUE
-    let del
-    console.log("prova")
-    console.log(deliveries)
+
     deliveries.forEach((delivery) => {
-        let currentDistance = distance(delivery, parcel)
+        let currentDistance = distance(point, delivery)
         if (currentDistance < nearest) {
-            del = delivery
             nearest = currentDistance
         }
     })

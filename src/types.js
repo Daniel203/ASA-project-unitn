@@ -32,9 +32,7 @@
  */
 
 /**
- * @typedef {Object} Delivery
- * @property {number} x
- * @property {number} y
+ * @typedef {Point} Delivery
  */
 
 /**
