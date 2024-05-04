@@ -1,7 +1,7 @@
 import { DeliverooApi } from "@unitn-asa/deliveroo-js-client"
 import { distance, sleep, getOptionScore, getNearestDelivery } from "./utils.js"
 import "./types.js"
-import { astar } from "./path_finding.js"
+import { plans } from "./plan.js"
 
 export const client = new DeliverooApi(
     "http://localhost:8080",
@@ -9,7 +9,7 @@ export const client = new DeliverooApi(
 )
 
 /** @type Me */
-const me = {}
+export const me = {}
 
 /**
  * @type Array<Array<number>> - the map of the game
@@ -17,7 +17,7 @@ const me = {}
  * 1 - Walkable
  * 2 - Delivery
  */
-const grid = []
+export const grid = []
 
 client.onYou(({ id, name, x, y, score }) => {
     me.id = id
@@ -27,7 +27,7 @@ client.onYou(({ id, name, x, y, score }) => {
     me.score = score
 })
 
-const rivals = new Map()
+export const rivals = new Map()
 client.onAgentsSensing(async (rival) => {
     for (const p of rival) {
         rivals.set(p.id, p)
@@ -47,7 +47,7 @@ client.onMap((width, height, tiles) => {
 })
 
 /** @type Map<number, Parcel> */
-const parcels = new Map()
+export const parcels = new Map()
 /** @type Array<Parcel> */
 var myParcels = []
 client.onParcelsSensing(async (perceived_parcels) => {
@@ -63,7 +63,7 @@ client.onParcelsSensing(async (perceived_parcels) => {
 })
 
 /** @type Array<Point> */
-const deliveries = []
+export const deliveries = []
 client.onTile(async (x, y, delivery, parcel) => {
     if (grid.length == 0) await sleep(1000)
 
@@ -73,7 +73,7 @@ client.onTile(async (x, y, delivery, parcel) => {
     }
 })
 
-const noZone = []
+export const noZone = []
 client.onNotTile(async (x, y) => {
     if (grid.length == 0) await sleep(1000)
 
@@ -153,23 +153,6 @@ async function agentLoop() {
             myAgent.push(bestOption)
         }
     }
-
-    /*TODO: da spostare nella parte di plans
-    if (bestOption) {
-        const path = astar(me, { x: best_option.x, y: best_option.y }, grid)
-        path.push({ x: me.x, y: me.y })
-
-        const directions = getDirections(path)
-        for (const direction of directions) {
-            for (const delivery of deliveries) {
-                if (me.x == delivery.x && me.y == delivery.y) {
-                    await client.putdown()
-                }
-            }
-            await client.move(direction)
-        }
-        await client.pickup()
-    }*/
 }
 
 client.onParcelsSensing(agentLoop)
@@ -182,7 +165,8 @@ class IntentionRevision {
     }
 
     async loop() {
-        for (;;) {  // TODO: da implementare
+        for (;;) {
+            // TODO: da implementare
             if (this.intention_queue.length > 0) {
                 // Current intention
                 const intention = this.intention_queue[0]
@@ -192,6 +176,7 @@ class IntentionRevision {
                 console.log("Checking intention", intention.predicate)
                 let id = intention.predicate[2]
                 let p = parcels.get(id)
+
                 if (p && p.carriedBy) {
                     console.log("Skipping intention because no more valid", intention.predicate)
                     continue
@@ -222,7 +207,6 @@ class IntentionRevision {
 class IntentionRevisionRevise extends IntentionRevision {
     async push(predicate) {
         // console.log("Revising intention queue. Received", ...predicate)
-        // TODO
         // - order intentions based on utility function (reward - cost) (for example, parcel score minus distance)
         // - eventually stop current one
         // - evaluate validity of intention
@@ -230,7 +214,7 @@ class IntentionRevisionRevise extends IntentionRevision {
         // TODO: da implementare, per ora aggiunge tutto senza logica
 
         // Check if already queued
-        if (this.intention_queue.find((i) => i.predicate.join(" ") == predicate.join(" "))) {
+        if (this.intention_queue.find((i) => i.predicate == predicate)) {
             return
         }
 
@@ -244,7 +228,7 @@ class IntentionRevisionRevise extends IntentionRevision {
 const myAgent = new IntentionRevisionRevise()
 myAgent.loop()
 
-class Intention {
+export class Intention {
     // Plan currently used for achieving the intention
     #current_plan
 
@@ -265,11 +249,13 @@ class Intention {
     #parent
 
     /**
-     * predicate is in the form ['go_to', x, y]
+     * @returns Option
      */
     get predicate() {
         return this.#predicate
     }
+
+    /** @type Option */
     #predicate
 
     constructor(parent, predicate) {
@@ -291,39 +277,22 @@ class Intention {
         if (this.#started) return this
         else this.#started = true
 
-        // Trying all plans in the library
-        for (const planClass of plans) {
-            // if stopped then quit
-            if (this.stopped) throw ["stopped intention", ...this.predicate]
+        console.log("pr:" + this.#predicate.action)
+        const plan = plans[this.#predicate.action]
 
-            // if plan is 'statically' applicable
-            if (planClass.isApplicableTo(...this.predicate)) {
-                // plan is instantiated
-                this.#current_plan = new planClass(this.parent)
-                this.log("achieving intention", ...this.predicate, "with plan", planClass.name)
-                // and plan is executed and result returned
-                try {
-                    const plan_res = await this.#current_plan.execute(...this.predicate)
-                    this.log(
-                        "succesful intention",
-                        ...this.predicate,
-                        "with plan",
-                        planClass.name,
-                        "with result:",
-                        plan_res,
-                    )
-                    return plan_res
-                    // or errors are caught so to continue with next plan
-                } catch (error) {
-                    this.log(
-                        "failed intention",
-                        ...this.predicate,
-                        "with plan",
-                        planClass.name,
-                        "with error:",
-                        ...error,
-                    )
-                }
+        if (this.stopped) throw ["stopped intention", this.predicate]
+        console.log(plan)
+        if (plan?.isApplicableTo(this.predicate)) {
+            console.log("prima di current plan")
+            this.#current_plan = plan
+
+            try {
+                const plan_res = await this.#current_plan.execute(this.predicate)
+                console.log("plan res", plan_res)
+                return plan_res
+                // or errors are caught so to continue with next plan
+            } catch (error) {
+                console.error(error)
             }
         }
 
@@ -335,41 +304,3 @@ class Intention {
         throw ["no plan satisfied the intention ", ...this.predicate]
     }
 }
-
-const plans = []
-
-class Plan {
-    stop() {
-        console.log("stop plan and all sub intentions")
-        for (const i of this.#sub_intentions) {
-            i.stop()
-        }
-    }
-
-    #sub_intentions = []
-
-    async subIntention(desire, ...args) {
-        const sub_intention = new Intention(desire, ...args)
-        this.#sub_intentions.push(sub_intention)
-        return await sub_intention.achieve()
-    }
-}
-
-class GoPickUp extends Plan {
-    isApplicableTo(desire) {}
-
-    async execute({ x, y }) {
-        console.log("GoPickUp.execute", x, y)
-    }
-}
-
-class BlindMove extends Plan {
-    isApplicableTo(desire) {}
-
-    async execute({ x, y }) {
-        console.log("BlindMove.execute", x, y)
-    }
-}
-
-plans.push(new GoPickUp())
-plans.push(new BlindMove())
