@@ -1,5 +1,5 @@
-import {parcels} from "./run.js"
-import {plans} from "./plan.js"
+import { parcels, me } from "./run.js"
+import { plans, Plan } from "./plan.js"
 
 class IntentionRevision {
     /** @type {Array<Intention>} */
@@ -11,7 +11,6 @@ class IntentionRevision {
 
     async loop() {
         for (;;) {
-            // TODO: da implementare
             if (this.intention_queue.length > 0) {
                 const intention = this.intention_queue[0]
 
@@ -49,18 +48,38 @@ class IntentionRevisionRevise extends IntentionRevision {
         // - eventually stop current one
         // - evaluate validity of intention
 
+        // TODO: sort di go_pick_up in base alla distanza
+
         // Check if already queued
         if (this.intention_queue.find((i) => i.predicate == predicate)) {
             return
         }
-        
-        // TODO: da trovare un modo migliore che e eliminare tutta la lista
-        while(this.intention_queue.length > 0) {
+
+        /*
+        if (this.intention_queue.length > 0) {
+            const currentIntention = this.intention_queue[0]
+
+            if (currentIntention.predicate.action == "go_pick_up") {
+                const parcel = parcels.get(currentIntention.predicate.id)
+
+                if (!parcel || (parcel.carriedBy != null && parcel.carriedBy != me.id)) {
+                    currentIntention.stop()
+                    console.log("DENTRO IF")
+                    // empty the list
+                    while (this.intention_queue.length > 0) {
+                        this.intention_queue.pop()
+                    }
+                }
+            }
+        }
+        */
+
+        while (this.intention_queue.length > 0) {
             this.intention_queue.pop()
         }
-
         const intention = new Intention(this, predicate)
         this.intention_queue.push(intention)
+        console.log(this.intention_queue.map((x) => x.predicate))
     }
 }
 
@@ -103,10 +122,9 @@ export class Intention {
     /** @type {Option} */
     #predicate
 
-
     /**
      *  @param {IntentionRevision} parent
-     *  @param {Option} predicate 
+     *  @param {Option} predicate
      */
     constructor(parent, predicate) {
         this.#parent = parent

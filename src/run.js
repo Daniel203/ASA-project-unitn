@@ -1,17 +1,21 @@
 import { DeliverooApi } from "@unitn-asa/deliveroo-js-client"
 import { distance, sleep, getOptionScore, getNearestDelivery } from "./utils.js"
 import "./types.js"
-import {myAgent} from "./intention.js"
+import { myAgent } from "./intention.js"
+import { logger } from "./logger.js"
 
 export const client = new DeliverooApi(
-    "http://localhost:8080",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQzMDEzYjI3NTQ1IiwibmFtZSI6IlZDQVJCIiwiaWF0IjoxNzE0Njc5NjY3fQ.zTwxpdXyHHV2zes7Vw4-SFuLl120KC5XDAgqlgSOxb4",
+    //"http://localhost:8080",
+    "https://deliveroojs.onrender.com",
+    //"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQzMDEzYjI3NTQ1IiwibmFtZSI6IlZDQVJCIiwiaWF0IjoxNzE0Njc5NjY3fQ.zTwxpdXyHHV2zes7Vw4-SFuLl120KC5XDAgqlgSOxb4",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImYyMDg2NTRiMWY0IiwibmFtZSI6InRlc3QiLCJpYXQiOjE3MTQ5MzY4NjF9.7v0TiO7JMM55staWC6kIzyuCf-rZ-9DXjm8NBLXebGU",
 )
 
 export var speed = 0
 client.onConfig((x) => {
     speed = parseInt(x.MOVEMENT_DURATION)
 })
+logger.info(speed)
 
 /** @type {Me} */
 export const me = {}
@@ -131,7 +135,7 @@ async function agentLoop() {
     }
 
     if (bestOptionPickUp || bestOptionPutDown) {
-        var potentialScorePickUp = 0
+        var potentialScorePickUp = 1
         var potentialScorePutDown = 0
 
         const actualScoreMyParcels =
@@ -140,17 +144,30 @@ async function agentLoop() {
         if (bestOptionPickUp) {
             //TODO: add rivals
             let minDistanceDel = getNearestDelivery(bestOptionPickUp, deliveries)
-            potentialScorePickUp =
+            potentialScorePickUp = Math.max(
+                1,
                 actualScoreMyParcels -
-                distance(me, bestOptionPickUp) * myParcels.length +
-                bestOptionPickUp.value -
-                minDistanceDel
+                    (distance(me, bestOptionPickUp) * speed) / 1000 +
+                    bestOptionPickUp.value -
+                    minDistanceDel,
+            )
+
+            console.log(bestOptionPickUp)
+            console.log("distance: " + distance(me, bestOptionPickUp))
         }
 
         if (bestOptionPutDown) {
-            potentialScorePutDown = actualScoreMyParcels - distance(me, bestOptionPutDown)
+            potentialScorePutDown = Math.max(
+                0,
+                actualScoreMyParcels - (distance(me, bestOptionPutDown) * speed) / 1000,
+            )
+            console.log(distance(me, bestOptionPutDown))
+            console.log(actualScoreMyParcels)
         }
 
+        console.log(`bestOptionPutDown: `, potentialScorePutDown)
+        console.log(`bestOptionPickUp: `, potentialScorePickUp)
+        console.log("")
         let bestOption =
             potentialScorePickUp > potentialScorePutDown ? bestOptionPickUp : bestOptionPutDown
 
