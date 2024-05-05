@@ -1,4 +1,4 @@
-import { client, me, grid, deliveries, noZone, parcels, rivals, Intention } from "./run.js"
+import { client, me, grid, deliveries, noZone, parcels, rivals, Intention, speed } from "./run.js"
 import { astar } from "./path_finding.js"
 import { getDirections, distance, sleep, getOptionScore, getNearestDelivery } from "./utils.js"
 
@@ -11,7 +11,7 @@ export const plans = new Map()
  */
 class Plan {
     stop() {
-        console.log("stop plan and all sub intentions")
+        console.log("stop plan and all sub intentions, ", this)
         for (const i of this.#sub_intentions) {
             i.stop()
         }
@@ -44,10 +44,10 @@ class GoPickUp extends Plan {
     async execute({ x, y }) {
         try {
             await this.subIntention("go_to", { x, y, action: "go_to" })
-            // await sleep(250)
 
-            await client.pickup()
-            // await sleep(250)
+            if (Math.round(me.x) === x && Math.round(me.y) === y) {
+                await client.pickup()
+            }
         } catch (error) {
             this.stop()
         }
@@ -67,9 +67,10 @@ class GoPutDown extends Plan {
     async execute({ x, y }) {
         try {
             await this.subIntention("go_to", { x, y, action: "go_to" })
-            // await sleep(250)
-            await client.putdown()
-            // await sleep(250)
+
+            if (Math.round(me.x) === x && Math.round(me.y) === y) {
+                await client.putdown()
+            }
         } catch (error) {
             this.stop()
         }
@@ -88,26 +89,32 @@ class BlindMove extends Plan {
     async execute({ x, y }) {
         const path = astar(me, { x: x, y: y }, grid)
 
-        const maxAttempts = 5
+        const maxAttempts = 1000 / speed * 10
         var attempts = 0
-
+        
         var i = 0
         while (i < path.length) {
             const coord = path[i]
+            const x = Math.round(me.x)
+            const y = Math.round(me.y)
 
-            if (me.x == coord.x - 1) {
+            if (x == coord.x - 1) {
                 await client.move("right")
-            } else if (me.x == coord.x + 1) {
+            } else if (x == coord.x + 1) {
                 await client.move("left")
-            } else if (me.y == coord.y - 1) {
+            } else if (y == coord.y - 1) {
                 await client.move("up")
-            } else if (me.y == coord.y + 1) {
+            } else if (y == coord.y + 1) {
                 await client.move("down")
             }
 
-            if (me.x !== coord.x && me.y !== coord.y && attempts < maxAttempts) {
+            if (Math.round(x) !== coord.x && Math.round(y) !== coord.y) {
+                if (attempts === maxAttempts) {
+                    throw new Error(`Impossible to reach the end of the path, it should be (${coord.x}, ${coord.y}) but it is (${x},${y})`)
+                }
+
                 attempts++
-                throw new Error("Impossible to reach the end of the path")
+                console.log("retry n:", attempts)
             } else {
                 i++
                 attempts = 0

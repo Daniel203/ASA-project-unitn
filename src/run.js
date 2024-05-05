@@ -8,6 +8,11 @@ export const client = new DeliverooApi(
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQzMDEzYjI3NTQ1IiwibmFtZSI6IlZDQVJCIiwiaWF0IjoxNzE0Njc5NjY3fQ.zTwxpdXyHHV2zes7Vw4-SFuLl120KC5XDAgqlgSOxb4",
 )
 
+export var speed = 0
+client.onConfig((x) => {
+    speed = parseInt(x.MOVEMENT_DURATION)
+})
+
 /** @type {Me} */
 export const me = {}
 
@@ -97,10 +102,10 @@ async function agentLoop() {
         }
     }
 
-    const sortedDeliveries = deliveries.sort((a, b) => distance(me, a) - distance(me, b))
+    deliveries.sort((a, b) => distance(me, a) - distance(me, b))
     var bestOptionPutDown
-    if (sortedDeliveries.length > 0) {
-        const bestDelivery = sortedDeliveries[0]
+    if (deliveries.length > 0) {
+        const bestDelivery = deliveries[0]
         bestOptionPutDown = {
             action: "go_put_down",
             x: bestDelivery.x,
@@ -156,6 +161,7 @@ async function agentLoop() {
 }
 
 client.onParcelsSensing(agentLoop)
+client.onAgentsSensing(agentLoop)
 
 class IntentionRevision {
     /** @type {Array<Intention>} */
@@ -210,6 +216,10 @@ class IntentionRevisionRevise extends IntentionRevision {
         // Check if already queued
         if (this.intention_queue.find((i) => i.predicate == predicate)) {
             return
+        }
+        
+        while(this.intention_queue.length > 0) {
+            this.intention_queue.pop()
         }
 
         const intention = new Intention(this, predicate)
