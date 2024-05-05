@@ -1,6 +1,6 @@
-import { client, me, grid, deliveries, noZone, parcels, rivals, Intention, speed } from "./run.js"
+import { client, me, grid,  speed } from "./run.js"
 import { astar } from "./path_finding.js"
-import { getDirections, distance, sleep, getOptionScore, getNearestDelivery } from "./utils.js"
+import { Intention } from "./intention.js"
 
 /** @type {Map<string, Plan>} */
 export const plans = new Map()
@@ -9,7 +9,7 @@ export const plans = new Map()
  * @class Plan
  * @classdesc A plan is a high level abstraction of a sequence of intentions
  */
-class Plan {
+export class Plan {
     stop() {
         console.log("stop plan and all sub intentions, ", this)
         for (const i of this.#sub_intentions) {
