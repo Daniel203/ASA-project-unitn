@@ -8,11 +8,11 @@ export const client = new DeliverooApi(
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQzMDEzYjI3NTQ1IiwibmFtZSI6IlZDQVJCIiwiaWF0IjoxNzE0Njc5NjY3fQ.zTwxpdXyHHV2zes7Vw4-SFuLl120KC5XDAgqlgSOxb4",
 )
 
-/** @type Me */
+/** @type {Me} */
 export const me = {}
 
 /**
- * @type Array<Array<number>> - the map of the game
+ * @type {Array<Array<number>>} - the map of the game
  * 0 - NoZone
  * 1 - Walkable
  * 2 - Delivery
@@ -46,9 +46,9 @@ client.onMap((width, height, tiles) => {
     }
 })
 
-/** @type Map<number, Parcel> */
+/** @type {Map<number, Parcel>} */
 export const parcels = new Map()
-/** @type Array<Parcel> */
+/** @type {Array<Parcel>} */
 var myParcels = []
 client.onParcelsSensing(async (perceived_parcels) => {
     myParcels = []
@@ -62,7 +62,7 @@ client.onParcelsSensing(async (perceived_parcels) => {
     }
 })
 
-/** @type Array<Point> */
+/** @type {Array<Point>} */
 export const deliveries = []
 client.onTile(async (x, y, delivery, parcel) => {
     if (grid.length == 0) await sleep(1000)
@@ -82,7 +82,7 @@ client.onNotTile(async (x, y) => {
 })
 
 async function agentLoop() {
-    /** @type Array<Option> */
+    /** @type {Array<Option>} */
     const options = []
 
     for (const parcel of parcels.values()) {
@@ -110,7 +110,7 @@ async function agentLoop() {
         }
     }
 
-    /** @type Option */
+    /** @type {Option} */
     let bestOptionPickUp
     let bestScorePickUp = 0
     let bestOption
@@ -158,6 +158,7 @@ async function agentLoop() {
 client.onParcelsSensing(agentLoop)
 
 class IntentionRevision {
+    /** @type {Array<Intention>} */
     #intention_queue = new Array()
 
     get intention_queue() {
@@ -168,29 +169,22 @@ class IntentionRevision {
         for (;;) {
             // TODO: da implementare
             if (this.intention_queue.length > 0) {
-                // Current intention
                 const intention = this.intention_queue[0]
 
-                // Is queued intention still valid? Do I still want to achieve it?
-                // TODO this hard-coded implementation is an example
-                console.log("Checking intention", intention.predicate)
-                let id = intention.predicate[2]
-                let p = parcels.get(id)
+                if (intention.action === "go_pick_up") {
+                    let id = intention.predicate.id
+                    let p = parcels.get(id)
 
-                if (p && p.carriedBy) {
-                    console.log("Skipping intention because no more valid", intention.predicate)
-                    continue
+                    if (p && p.carriedBy) {
+                        console.log("Parcel", id, "already carried by", p.carriedBy)
+                        continue
+                    }
                 }
 
-                // Start achieving intention
-                await intention
-                    .achieve()
-                    // Catch eventual error and continue
-                    .catch((error) => {
-                        // console.log( 'Failed intention', ...intention.predicate, 'with error:', ...error )
-                    })
+                await intention.achieve().catch((error) => {
+                    console.log("Failed intention", intention.predicate, "with error:", error)
+                })
 
-                // Remove from the queue
                 this.intention_queue.shift()
             }
 
@@ -218,9 +212,7 @@ class IntentionRevisionRevise extends IntentionRevision {
             return
         }
 
-        console.log("IntentionRevisionReplace.push", predicate)
-        const intention = await new Intention(this, predicate)
-        console.log(`Pushing intention ${intention.predicate}`)
+        const intention = new Intention(this, predicate)
         this.intention_queue.push(intention)
     }
 }
@@ -228,6 +220,10 @@ class IntentionRevisionRevise extends IntentionRevision {
 const myAgent = new IntentionRevisionRevise()
 myAgent.loop()
 
+/**
+ * @class Intention
+ * @classdesc Intention is a class that represents a goal that the agent wants to achieve.
+ */
 export class Intention {
     // Plan currently used for achieving the intention
     #current_plan
@@ -249,15 +245,20 @@ export class Intention {
     #parent
 
     /**
-     * @returns Option
+     * @returns {Option}
      */
     get predicate() {
         return this.#predicate
     }
 
-    /** @type Option */
+    /** @type {Option} */
     #predicate
 
+
+    /**
+     *  @param {IntentionRevision} parent
+     *  @param {Option} predicate 
+     */
     constructor(parent, predicate) {
         this.#parent = parent
         this.#predicate = predicate
@@ -277,30 +278,22 @@ export class Intention {
         if (this.#started) return this
         else this.#started = true
 
-        console.log("pr:" + this.#predicate.action)
         const plan = plans[this.#predicate.action]
 
         if (this.stopped) throw ["stopped intention", this.predicate]
-        console.log(plan)
         if (plan?.isApplicableTo(this.predicate)) {
-            console.log("prima di current plan")
             this.#current_plan = plan
 
             try {
                 const plan_res = await this.#current_plan.execute(this.predicate)
-                console.log("plan res", plan_res)
                 return plan_res
-                // or errors are caught so to continue with next plan
             } catch (error) {
                 console.error(error)
             }
         }
 
-        // if stopped then quit
-        if (this.stopped) throw ["stopped intention", ...this.predicate]
+        if (this.stopped) throw ["stopped intention", this.predicate]
 
-        // no plans have been found to satisfy the intention
-        // this.log( 'no plan satisfied the intention ', ...this.predicate );
-        throw ["no plan satisfied the intention ", ...this.predicate]
+        throw ["no plan satisfied the intention ", this.predicate]
     }
 }
