@@ -4,11 +4,13 @@ import "./types.js"
 import { myAgent } from "./intention.js"
 import { logger } from "./logger.js"
 
+import * as pf from "@cetfox24/pathfinding-js"
+
 export const client = new DeliverooApi(
-    //"http://localhost:8080",
-    "https://deliveroojs.onrender.com",
-    //"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQzMDEzYjI3NTQ1IiwibmFtZSI6IlZDQVJCIiwiaWF0IjoxNzE0Njc5NjY3fQ.zTwxpdXyHHV2zes7Vw4-SFuLl120KC5XDAgqlgSOxb4",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImYyMDg2NTRiMWY0IiwibmFtZSI6InRlc3QiLCJpYXQiOjE3MTQ5MzY4NjF9.7v0TiO7JMM55staWC6kIzyuCf-rZ-9DXjm8NBLXebGU",
+    "http://localhost:8080",
+    // "https://deliveroojs.onrender.com",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQzMDEzYjI3NTQ1IiwibmFtZSI6IlZDQVJCIiwiaWF0IjoxNzE0Njc5NjY3fQ.zTwxpdXyHHV2zes7Vw4-SFuLl120KC5XDAgqlgSOxb4",
+    // "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImYyMDg2NTRiMWY0IiwibmFtZSI6InRlc3QiLCJpYXQiOjE3MTQ5MzY4NjF9.7v0TiO7JMM55staWC6kIzyuCf-rZ-9DXjm8NBLXebGU",
 )
 
 export var speed = 0
@@ -27,6 +29,7 @@ export const me = {}
  * 2 - Delivery
  */
 export const grid = []
+export var pathFindingGrid = undefined
 
 client.onYou(({ id, name, x, y, score }) => {
     me.id = id
@@ -52,6 +55,10 @@ client.onMap((width, height, tiles) => {
             }
             grid.push(col)
         }
+    }
+
+    if (pathFindingGrid == undefined) {
+        pathFindingGrid = new pf.Grid(width, height)
     }
 })
 
@@ -88,6 +95,8 @@ client.onNotTile(async (x, y) => {
 
     noZone.push({ x: x, y: y })
     grid[x][y] = 0
+
+    pathFindingGrid.setSolid(x, y, true)
 })
 
 async function agentLoop() {
@@ -152,8 +161,8 @@ async function agentLoop() {
                     minDistanceDel,
             )
 
-            console.log(bestOptionPickUp)
-            console.log("distance: " + distance(me, bestOptionPickUp))
+            // console.log(bestOptionPickUp)
+            // console.log("distance: " + distance(me, bestOptionPickUp))
         }
 
         if (bestOptionPutDown) {
@@ -165,14 +174,20 @@ async function agentLoop() {
             console.log(actualScoreMyParcels)
         }
 
-        console.log(`bestOptionPutDown: `, potentialScorePutDown)
-        console.log(`bestOptionPickUp: `, potentialScorePickUp)
-        console.log("")
+        // console.log(`bestOptionPutDown: `, potentialScorePutDown)
+        // console.log(`bestOptionPickUp: `, potentialScorePickUp)
+        // console.log("")
         let bestOption =
             potentialScorePickUp > potentialScorePutDown ? bestOptionPickUp : bestOptionPutDown
 
         if (bestOption) {
             myAgent.push(bestOption)
+        } else {
+            const goRandomOption = {
+                action: "go_random",
+                id: "random",
+            }
+            myAgent.push(goRandomOption)
         }
     }
 }

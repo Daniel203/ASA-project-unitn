@@ -1,22 +1,35 @@
-import { client, me, grid,  speed } from "./run.js"
-import { astar } from "./path_finding.js"
+import { client, me, grid, speed, pathFindingGrid} from "./run.js"
 import { Intention } from "./intention.js"
+
+import * as pf from "@cetfox24/pathfinding-js"
+
 
 /** @type {Map<string, Plan>} */
 export const plans = new Map()
+
+/** @type {pf.AStar} */
+const finder = new pf.AStar()
 
 /**
  * @class Plan
  * @classdesc A plan is a high level abstraction of a sequence of intentions
  */
 export class Plan {
+    #stopped = false
+
+    get stopped() {
+        return this.#stopped
+    }
+
     stop() {
         console.log("stop plan and all sub intentions, ", this)
+        this.#stopped = true
         for (const i of this.#sub_intentions) {
             i.stop()
         }
     }
 
+    /** @type {Intention[]} */
     #sub_intentions = []
 
     async subIntention(desire, ...args) {
@@ -29,7 +42,7 @@ export class Plan {
         return true
     }
 
-    async execute({ x, y }) { }
+    async execute({ x, y }) {}
 
     getPlanName() {
         return "plan"
@@ -52,7 +65,6 @@ class GoPickUp extends Plan {
             this.stop()
         }
     }
-
 
     getPlanName() {
         return "go_pick_up"
@@ -81,20 +93,46 @@ class GoPutDown extends Plan {
     }
 }
 
+class GoRandom extends Plan {
+    isApplicableTo(desire) {
+        return true
+    }
+
+    async execute() {
+        try {
+            while (this.stopped === false) {
+                // pick a random point in the map
+                const x = Math.floor(Math.random() * grid.length)
+                const y = Math.floor(Math.random() * grid[0].length)
+
+                if (grid[x][y] !== 0) {
+                    await this.subIntention("go_to", { x, y, action: "go_to" })
+                }
+            }
+        } catch (error) {
+            this.stop()
+        }
+    }
+
+    getPlanName() {
+        return "go_random"
+    }
+}
+
 class BlindMove extends Plan {
     isApplicableTo(desire) {
         return true
     }
 
     async execute({ x, y }) {
-        const path = astar(me, { x: x, y: y }, grid)
+        const path = finder.findPath(me, { x: x, y: y }, pathFindingGrid)
 
-        const maxAttempts = 1000 / speed * 10
+        const maxAttempts = (1000 / speed) * 10
         var attempts = 0
-        
+
         var i = 0
-        while (i < path.length) {
-            const coord = path[i]
+        while (i < path.path.length) {
+            const coord = path.path[i]
             const x = Math.round(me.x)
             const y = Math.round(me.y)
 
@@ -110,7 +148,9 @@ class BlindMove extends Plan {
 
             if (Math.round(x) !== coord.x && Math.round(y) !== coord.y) {
                 if (attempts === maxAttempts) {
-                    throw new Error(`Impossible to reach the end of the path, it should be (${coord.x}, ${coord.y}) but it is (${x},${y})`)
+                    throw new Error(
+                        `Impossible to reach the end of the path, it should be (${coord.x}, ${coord.y}) but it is (${x},${y})`,
+                    )
                 }
 
                 attempts++
@@ -130,3 +170,4 @@ class BlindMove extends Plan {
 plans["go_pick_up"] = new GoPickUp()
 plans["go_to"] = new BlindMove()
 plans["go_put_down"] = new GoPutDown()
+plans["go_random"] = new GoRandom()

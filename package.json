@@ -19,6 +19,7 @@
     "prettier": "3.2.5"
   },
   "dependencies": {
+    "@cetfox24/pathfinding-js": "^1.3.5",
     "@unitn-asa/deliveroo-js-client": "^0.0.31",
     "@unitn-asa/pddl-client": "^0.0.29",
     "heap-js": "^2.5.0",
