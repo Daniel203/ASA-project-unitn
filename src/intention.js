@@ -1,5 +1,6 @@
 import { parcels, me } from "./run.js"
 import { plans, Plan } from "./plan.js"
+import { distance } from "./utils.js"
 
 class IntentionRevision {
     /** @type {Array<Intention>} */
@@ -10,7 +11,7 @@ class IntentionRevision {
     }
 
     async loop() {
-        for (;;) {
+        for (; ;) {
             if (this.intention_queue.length > 0) {
                 const intention = this.intention_queue[0]
 
@@ -19,7 +20,6 @@ class IntentionRevision {
                     let p = parcels.get(id)
 
                     if (p && p.carriedBy) {
-                        console.log("Parcel", id, "already carried by", p.carriedBy)
                         continue
                     }
                 }
@@ -50,12 +50,13 @@ class IntentionRevisionRevise extends IntentionRevision {
 
         // TODO: sort di go_pick_up in base alla distanza
 
+
         // Check if already queued
-        if (this.intention_queue.find((i) => i.predicate == predicate)) {
+        console.log(this.intention_queue.map(x => x.predicate))
+        if (this.intention_queue.find((i) => i.predicate.id == predicate.id)) {
             return
         }
 
-        /*
         if (this.intention_queue.length > 0) {
             const currentIntention = this.intention_queue[0]
 
@@ -64,22 +65,23 @@ class IntentionRevisionRevise extends IntentionRevision {
 
                 if (!parcel || (parcel.carriedBy != null && parcel.carriedBy != me.id)) {
                     currentIntention.stop()
-                    console.log("DENTRO IF")
-                    // empty the list
-                    while (this.intention_queue.length > 0) {
-                        this.intention_queue.pop()
-                    }
+                }
+            }
+
+            if (currentIntention.predicate.action == "go_random") {
+                if (predicate.action != "go_random") {
+                    currentIntention.stop()
                 }
             }
         }
-        */
 
         while (this.intention_queue.length > 0) {
             this.intention_queue.pop()
         }
+
         const intention = new Intention(this, predicate)
         this.intention_queue.push(intention)
-        console.log(this.intention_queue.map((x) => x.predicate))
+        console.log(this.intention_queue.map(x => x.predicate))
     }
 }
 

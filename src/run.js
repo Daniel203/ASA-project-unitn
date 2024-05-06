@@ -7,15 +7,21 @@ import { logger } from "./logger.js"
 import * as pf from "@cetfox24/pathfinding-js"
 
 export const client = new DeliverooApi(
-    "http://localhost:8080",
-    // "https://deliveroojs.onrender.com",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQzMDEzYjI3NTQ1IiwibmFtZSI6IlZDQVJCIiwiaWF0IjoxNzE0Njc5NjY3fQ.zTwxpdXyHHV2zes7Vw4-SFuLl120KC5XDAgqlgSOxb4",
-    // "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImYyMDg2NTRiMWY0IiwibmFtZSI6InRlc3QiLCJpYXQiOjE3MTQ5MzY4NjF9.7v0TiO7JMM55staWC6kIzyuCf-rZ-9DXjm8NBLXebGU",
+    //"http://localhost:8080",
+    "https://deliveroojs.onrender.com",
+    //"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQzMDEzYjI3NTQ1IiwibmFtZSI6IlZDQVJCIiwiaWF0IjoxNzE0Njc5NjY3fQ.zTwxpdXyHHV2zes7Vw4-SFuLl120KC5XDAgqlgSOxb4",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQzNzM3ZmM2YWUzIiwibmFtZSI6InRlc3QxIiwiaWF0IjoxNzE1MDI4NTc3fQ.v_P_DTSPwlG7azA2HjllVsBT12Cc24esfcM8hrJiNCI",
 )
 
+export var speedParcel = 0
 export var speed = 0
 client.onConfig((x) => {
     speed = parseInt(x.MOVEMENT_DURATION)
+    if ( x.PARCEL_DECADING_INTERVAL == "infinite"){
+        speedParcel = 0
+    }else{
+        speedParcel = parseInt(x.PARCEL_DECADING_INTERVAL)
+    }
 })
 logger.info(speed)
 
@@ -99,7 +105,7 @@ client.onNotTile(async (x, y) => {
     pathFindingGrid.setSolid(x, y, true)
 })
 
-async function agentLoop() {
+function agentLoop() {
     /** @type {Array<Option>} */
     const options = []
 
@@ -144,54 +150,62 @@ async function agentLoop() {
     }
 
     if (bestOptionPickUp || bestOptionPutDown) {
-        var potentialScorePickUp = 1
+        var potentialScorePickUp = 0
         var potentialScorePutDown = 0
 
         const actualScoreMyParcels =
             myParcels.length > 0 ? myParcels.map((p) => p.reward).reduce((a, b) => a + b) : 0
 
         if (bestOptionPickUp) {
-            //TODO: add rivals
             let minDistanceDel = getNearestDelivery(bestOptionPickUp, deliveries)
             potentialScorePickUp = Math.max(
-                1,
+                0,
                 actualScoreMyParcels -
                     (distance(me, bestOptionPickUp) * speed) / 1000 +
                     bestOptionPickUp.value -
-                    minDistanceDel,
-            )
-
-            // console.log(bestOptionPickUp)
-            // console.log("distance: " + distance(me, bestOptionPickUp))
+                    minDistanceDel * speedParcel / 1000,
+            ) 
         }
 
         if (bestOptionPutDown) {
             potentialScorePutDown = Math.max(
                 0,
-                actualScoreMyParcels - (distance(me, bestOptionPutDown) * speed) / 1000,
+                actualScoreMyParcels - (distance(me, bestOptionPutDown) * speedParcel) / 1000,
             )
-            console.log(distance(me, bestOptionPutDown))
-            console.log(actualScoreMyParcels)
         }
 
-        // console.log(`bestOptionPutDown: `, potentialScorePutDown)
-        // console.log(`bestOptionPickUp: `, potentialScorePickUp)
-        // console.log("")
-        let bestOption =
-            potentialScorePickUp > potentialScorePutDown ? bestOptionPickUp : bestOptionPutDown
+        console.log(`bestOptionPutDown: `, potentialScorePutDown)
+        console.log(`bestOptionPickUp: `, potentialScorePickUp)
+        console.log("")
+        
+        if ((potentialScorePickUp != 0 || potentialScorePutDown != 0) && (bestOptionPickUp || bestOptionPutDown)) {
+            let bestOption =
+                potentialScorePickUp > potentialScorePutDown ? bestOptionPickUp : bestOptionPutDown
 
-        if (bestOption) {
             myAgent.push(bestOption)
         } else {
             const goRandomOption = {
                 action: "go_random",
                 id: "random",
             }
+            console.log("RANDOM")
             myAgent.push(goRandomOption)
         }
     }
+    
+    return new Promise(res => setImmediate(() => res()))
 }
 
+/*
 client.onParcelsSensing(agentLoop)
 client.onAgentsSensing(agentLoop)
 client.onYou(agentLoop)
+*/
+const run = async () => {
+    while (true) {
+        await agentLoop()
+        await sleep(speed)
+    }
+}
+
+run()

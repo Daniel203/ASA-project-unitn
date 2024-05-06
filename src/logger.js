@@ -3,7 +3,7 @@ import pino from "pino"
 //create a trasport
 const fileTransport = pino.transport({
     target: "pino/file",
-    options: { destination: `./src/log/app.log` },
+    options: { destination: `logs/log`, mkdir: true },
 })
 
 //create a logger

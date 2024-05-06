@@ -100,14 +100,13 @@ class GoRandom extends Plan {
 
     async execute() {
         try {
-            while (this.stopped === false) {
-                // pick a random point in the map
-                const x = Math.floor(Math.random() * grid.length)
-                const y = Math.floor(Math.random() * grid[0].length)
+            // pick a random point in the map
+            const x = Math.floor(Math.random() * grid.length)
+            const y = Math.floor(Math.random() * grid[0].length)
 
-                if (grid[x][y] !== 0) {
-                    await this.subIntention("go_to", { x, y, action: "go_to" })
-                }
+            if (grid[x][y] !== 0) {
+                console.log(`(${x}, ${y})`)
+                await this.subIntention("go_to", { x, y, action: "go_to" })
             }
         } catch (error) {
             this.stop()
@@ -131,7 +130,7 @@ class BlindMove extends Plan {
         var attempts = 0
 
         var i = 0
-        while (i < path.path.length) {
+        while (i < path.length) {
             const coord = path.path[i]
             const x = Math.round(me.x)
             const y = Math.round(me.y)

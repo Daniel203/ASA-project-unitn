@@ -1,4 +1,5 @@
 import "./types.js"
+import { speedParcel, speed } from "./run.js"
 
 /**
  * @param {Point} point1
@@ -66,7 +67,7 @@ export function getOptionScore(parcel, dist, rivals) {
         score = distance(parcel, nearestRival)
     }
 
-    score = score * rivalsWeight + dist * distanceWeight + parcel.value * valueWeight
+    score = score * rivalsWeight + dist * distanceWeight * speedParcel / 1000 + parcel.value * valueWeight
     return score
 }
 
