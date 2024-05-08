@@ -1,5 +1,5 @@
 import "./types.js"
-import { speedParcel, speed } from "./run.js"
+import { speedParcel, speed, maxParcels } from "./run.js"
 
 /**
  * @param {Point} point1
@@ -67,14 +67,13 @@ export function getOptionScore(parcel, dist, rivals) {
         score = distance(parcel, nearestRival)
     }
 
-    score = score * rivalsWeight + dist * distanceWeight * speedParcel / 1000 + parcel.value * valueWeight
+    score = dist * distanceWeight + parcel.value * valueWeight + score * rivalsWeight
     return score
 }
 
 /**
  * @param {Point} point - the starting point
  * @param {Array<Delivery>}  deliveries
- * @returns {Delivery} nearest delivery
  * @returns {number} the best distance between delivery and parcel
  */
 export function getNearestDelivery(point, deliveries) {

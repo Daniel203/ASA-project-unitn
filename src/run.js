@@ -7,19 +7,20 @@ import { logger } from "./logger.js"
 import * as pf from "@cetfox24/pathfinding-js"
 
 export const client = new DeliverooApi(
-    //"http://localhost:8080",
-    "https://deliveroojs.onrender.com",
-    //"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQzMDEzYjI3NTQ1IiwibmFtZSI6IlZDQVJCIiwiaWF0IjoxNzE0Njc5NjY3fQ.zTwxpdXyHHV2zes7Vw4-SFuLl120KC5XDAgqlgSOxb4",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQzNzM3ZmM2YWUzIiwibmFtZSI6InRlc3QxIiwiaWF0IjoxNzE1MDI4NTc3fQ.v_P_DTSPwlG7azA2HjllVsBT12Cc24esfcM8hrJiNCI",
+    "http://localhost:8080",
+    //"https://deliveroojs3.onrender.com",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQzMDEzYjI3NTQ1IiwibmFtZSI6IlZDQVJCIiwiaWF0IjoxNzE0Njc5NjY3fQ.zTwxpdXyHHV2zes7Vw4-SFuLl120KC5XDAgqlgSOxb4",
 )
 
 export var speedParcel = 0
 export var speed = 0
+export var maxParcels = 0
 client.onConfig((x) => {
     speed = parseInt(x.MOVEMENT_DURATION)
-    if ( x.PARCEL_DECADING_INTERVAL == "infinite"){
+    maxParcels = parseInt(x.PARCELS_MAX)
+    if (x.PARCEL_DECADING_INTERVAL == "infinite") {
         speedParcel = 0
-    }else{
+    } else {
         speedParcel = parseInt(x.PARCEL_DECADING_INTERVAL)
     }
 })
@@ -157,28 +158,35 @@ function agentLoop() {
             myParcels.length > 0 ? myParcels.map((p) => p.reward).reduce((a, b) => a + b) : 0
 
         if (bestOptionPickUp) {
-            let minDistanceDel = getNearestDelivery(bestOptionPickUp, deliveries)
-            potentialScorePickUp = Math.max(
-                0,
-                actualScoreMyParcels -
-                    (distance(me, bestOptionPickUp) * speed) / 1000 +
-                    bestOptionPickUp.value -
-                    minDistanceDel * speedParcel / 1000,
-            ) 
+            if (myParcels.length == maxParcels) {
+                potentialScorePickUp = 0
+            } else {
+                let minDistanceDel = getNearestDelivery(bestOptionPickUp, deliveries)
+                potentialScorePickUp = Math.max(
+                    0,
+                    actualScoreMyParcels -
+                        (distance(me, bestOptionPickUp) * speed) / 1000 +
+                        bestOptionPickUp.value -
+                        (minDistanceDel * speedParcel) / 1000,
+                )
+            }
         }
 
         if (bestOptionPutDown) {
             potentialScorePutDown = Math.max(
                 0,
-                actualScoreMyParcels - (distance(me, bestOptionPutDown) * speedParcel) / 1000,
+                actualScoreMyParcels - (distance(me, bestOptionPutDown) * speed) / 1000,
             )
         }
 
-        console.log(`bestOptionPutDown: `, potentialScorePutDown)
-        console.log(`bestOptionPickUp: `, potentialScorePickUp)
-        console.log("")
-        
-        if ((potentialScorePickUp != 0 || potentialScorePutDown != 0) && (bestOptionPickUp || bestOptionPutDown)) {
+        //console.log(`bestOptionPutDown: `, potentialScorePutDown)
+        //console.log(`bestOptionPickUp: `, potentialScorePickUp)
+        //console.log("")
+
+        if (
+            (potentialScorePickUp != 0 || potentialScorePutDown != 0) &&
+            (bestOptionPickUp || bestOptionPutDown)
+        ) {
             let bestOption =
                 potentialScorePickUp > potentialScorePutDown ? bestOptionPickUp : bestOptionPutDown
 
@@ -188,12 +196,12 @@ function agentLoop() {
                 action: "go_random",
                 id: "random",
             }
-            console.log("RANDOM")
+            //console.log("RANDOM")
             myAgent.push(goRandomOption)
         }
     }
-    
-    return new Promise(res => setImmediate(() => res()))
+
+    return new Promise((res) => setImmediate(() => res()))
 }
 
 /*
