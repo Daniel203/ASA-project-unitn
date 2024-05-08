@@ -15,7 +15,10 @@ export const client = new DeliverooApi(
 export var speedParcel = 0
 export var speed = 0
 export var maxParcels = 0
+export var distanceVisibility = 0
+
 client.onConfig((x) => {
+    distanceVisibility = parseInt(x.PARCELS_OBSERVATION_DISTANCE)
     speed = parseInt(x.MOVEMENT_DURATION)
     maxParcels = parseInt(x.PARCELS_MAX)
     if (x.PARCEL_DECADING_INTERVAL == "infinite") {
@@ -77,6 +80,7 @@ client.onParcelsSensing(async (perceived_parcels) => {
     myParcels = []
 
     for (const p of perceived_parcels) {
+        p.created_at = Date.now()
         parcels.set(p.id, p)
 
         if (p.carriedBy == me.id) {
@@ -110,17 +114,28 @@ function agentLoop() {
     /** @type {Array<Option>} */
     const options = []
 
+    const parcelsToDelete = []
     for (const parcel of parcels.values()) {
         if (!parcel.carriedBy) {
-            options.push({
-                action: "go_pick_up",
-                x: parcel.x,
-                y: parcel.y,
-                id: parcel.id,
-                value: parcel.reward,
-            })
+            const parcelValueNow =
+                parcel.reward - Math.round((Date.now() - parcel.created_at) / (speedParcel * 1000))
+
+            if (parcelValueNow > 0) {
+                options.push({
+                    action: "go_pick_up",
+                    x: parcel.x,
+                    y: parcel.y,
+                    id: parcel.id,
+                    value: parcelValueNow,
+                })
+            } else {
+                parcelsToDelete.push(parcel.id)
+            }
         }
     }
+
+    // remove outdated parcels
+    parcelsToDelete.forEach((p) => parcels.delete(p))
 
     deliveries.sort((a, b) => distance(me, a) - distance(me, b))
     var bestOptionPutDown
@@ -143,9 +158,9 @@ function agentLoop() {
         if (option.action == "go_pick_up") {
             let dist = distance(me, option)
             let score = getOptionScore(option, dist, rivals)
-            if (score > bestScorePickUp) {
+            if (option.value / dist > bestScorePickUp) {
                 bestOptionPickUp = option
-                bestScorePickUp = score
+                bestScorePickUp = option.value / dist
             }
         }
     }
@@ -164,10 +179,11 @@ function agentLoop() {
                 let minDistanceDel = getNearestDelivery(bestOptionPickUp, deliveries)
                 potentialScorePickUp = Math.max(
                     0,
-                    actualScoreMyParcels -
+                    bestOptionPickUp.value,
+                    /*actualScoreMyParcels -
                         (distance(me, bestOptionPickUp) * speed) / 1000 +
                         bestOptionPickUp.value -
-                        (minDistanceDel * speedParcel) / 1000,
+                        (minDistanceDel * speedParcel) / 1000,*/
                 )
             }
         }
@@ -179,9 +195,9 @@ function agentLoop() {
             )
         }
 
-        //console.log(`bestOptionPutDown: `, potentialScorePutDown)
-        //console.log(`bestOptionPickUp: `, potentialScorePickUp)
-        //console.log("")
+        console.log(`bestOptionPutDown: `, potentialScorePutDown)
+        console.log(`bestOptionPickUp: `, potentialScorePickUp)
+        console.log("")
 
         if (
             (potentialScorePickUp != 0 || potentialScorePutDown != 0) &&
@@ -209,6 +225,7 @@ client.onParcelsSensing(agentLoop)
 client.onAgentsSensing(agentLoop)
 client.onYou(agentLoop)
 */
+
 const run = async () => {
     while (true) {
         await agentLoop()

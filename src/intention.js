@@ -11,7 +11,7 @@ class IntentionRevision {
     }
 
     async loop() {
-        for (; ;) {
+        for (;;) {
             if (this.intention_queue.length > 0) {
                 const intention = this.intention_queue[0]
 
@@ -50,9 +50,8 @@ class IntentionRevisionRevise extends IntentionRevision {
 
         // TODO: sort di go_pick_up in base alla distanza
 
-
         // Check if already queued
-        console.log(this.intention_queue.map(x => x.predicate))
+        console.log(this.intention_queue.map((x) => x.predicate))
         if (this.intention_queue.find((i) => i.predicate.id == predicate.id)) {
             return
         }
@@ -81,7 +80,7 @@ class IntentionRevisionRevise extends IntentionRevision {
 
         const intention = new Intention(this, predicate)
         this.intention_queue.push(intention)
-        console.log(this.intention_queue.map(x => x.predicate))
+        console.log(this.intention_queue.map((x) => x.predicate))
     }
 }
 
