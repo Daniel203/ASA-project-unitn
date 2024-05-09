@@ -1,6 +1,7 @@
 import { Heap } from "heap-js"
 import { distance } from "./utils.js"
 import "./types.js"
+import {logger} from "./logger.js"
 
 /**
  * Heuristic function that estimates the cost to reach goal from node n
@@ -54,7 +55,7 @@ function getNeighbors(point, grid, height, width) {
             neighbors.push({ x: x, y: y + 1 })
         }
     } catch (e) {
-        console.error(e)
+        logger.error(e)
     }
 
     return neighbors

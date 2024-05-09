@@ -1,5 +1,5 @@
 import { DeliverooApi } from "@unitn-asa/deliveroo-js-client"
-import { distance, sleep, getOptionScore, getNearestDelivery } from "./utils.js"
+import { distance, sleep, getNearestDelivery } from "./utils.js"
 import "./types.js"
 import { myAgent } from "./intention.js"
 import { logger } from "./logger.js"
@@ -27,7 +27,6 @@ client.onConfig((x) => {
         speedParcel = parseInt(x.PARCEL_DECADING_INTERVAL)
     }
 })
-logger.info(speed)
 
 /** @type {Me} */
 export const me = {}
@@ -56,7 +55,7 @@ client.onAgentsSensing(async (rival) => {
     }
 })
 
-client.onMap((width, height, tiles) => {
+client.onMap((width, height) => {
     if (grid.length == 0) {
         for (let i = 0; i < width; i++) {
             const col = []
@@ -91,7 +90,7 @@ client.onParcelsSensing(async (perceived_parcels) => {
 
 /** @type {Array<Point>} */
 export const deliveries = []
-client.onTile(async (x, y, delivery, parcel) => {
+client.onTile(async (x, y, delivery) => {
     if (grid.length == 0) await sleep(1000)
 
     if (delivery) {
@@ -153,11 +152,12 @@ function agentLoop() {
     /** @type {Option} */
     let bestOptionPickUp
     let bestScorePickUp = 0
-    let bestOption
+    // let bestOption
+
     for (const option of options) {
         if (option.action == "go_pick_up") {
             let dist = distance(me, option)
-            let score = getOptionScore(option, dist, rivals)
+            // let score = getOptionScore(option, dist, rivals)
             if (option.value / dist > bestScorePickUp) {
                 bestOptionPickUp = option
                 bestScorePickUp = option.value / dist
@@ -176,7 +176,7 @@ function agentLoop() {
             if (myParcels.length == maxParcels) {
                 potentialScorePickUp = 0
             } else {
-                let minDistanceDel = getNearestDelivery(bestOptionPickUp, deliveries)
+                // let minDistanceDel = getNearestDelivery(bestOptionPickUp, deliveries)
                 potentialScorePickUp = Math.max(
                     0,
                     bestOptionPickUp.value,
@@ -195,9 +195,8 @@ function agentLoop() {
             )
         }
 
-        console.log(`bestOptionPutDown: `, potentialScorePutDown)
-        console.log(`bestOptionPickUp: `, potentialScorePickUp)
-        console.log("")
+        logger.info(`bestOptionPutDown: ${potentialScorePutDown}`)
+        logger.info(`bestOptionPickUp: ${potentialScorePickUp}`)
 
         if (
             (potentialScorePickUp != 0 || potentialScorePutDown != 0) &&
@@ -212,7 +211,7 @@ function agentLoop() {
                 action: "go_random",
                 id: "random",
             }
-            //console.log("RANDOM")
+            logger.info("RANDOM")
             myAgent.push(goRandomOption)
         }
     }
@@ -227,7 +226,7 @@ client.onYou(agentLoop)
 */
 
 const run = async () => {
-    while (true) {
+    for (;;) {
         await agentLoop()
         await sleep(speed)
     }

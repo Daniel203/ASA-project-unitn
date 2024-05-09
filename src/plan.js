@@ -1,8 +1,8 @@
-import { client, me, grid, speed, pathFindingGrid} from "./run.js"
+import { client, me, grid, speed, pathFindingGrid, rivals } from "./run.js"
 import { Intention } from "./intention.js"
+import { logger } from "./logger.js"
 
 import * as pf from "@cetfox24/pathfinding-js"
-
 
 /** @type {Map<string, Plan>} */
 export const plans = new Map()
@@ -11,19 +11,13 @@ export const plans = new Map()
 const finder = new pf.AStar()
 
 /**
- * @class Plan
  * @classdesc A plan is a high level abstraction of a sequence of intentions
  */
 export class Plan {
-    #stopped = false
-
-    get stopped() {
-        return this.#stopped
-    }
-
     stop() {
-        console.log("stop plan and all sub intentions, ", this)
-        this.#stopped = true
+        logger.info(
+            `stop plan and all sub intentions, ${this.#sub_intentions.forEach((i) => JSON.stringify(i.predicate))}`,
+        )
         for (const i of this.#sub_intentions) {
             i.stop()
         }
@@ -32,50 +26,55 @@ export class Plan {
     /** @type {Intention[]} */
     #sub_intentions = []
 
+    /**
+     * @param {string} desire
+     * @param  {Option} args
+     * @returns {Promise<any>}
+     */
     async subIntention(desire, ...args) {
         const sub_intention = new Intention(desire, ...args)
         this.#sub_intentions.push(sub_intention)
         return await sub_intention.achieve()
     }
 
+    /**
+     * @param {Option} desire
+     * @returns {boolean}
+     */
     isApplicableTo(desire) {
         return true
     }
 
     async execute({ x, y }) {}
 
-    getPlanName() {
+    get name() {
         return "plan"
     }
 }
 
+/** @extends Plan */
 class GoPickUp extends Plan {
-    isApplicableTo(desire) {
-        return true
-    }
-
-    async execute({ x, y }) {
+    async execute({ x, y, args }) {
         try {
-            await this.subIntention("go_to", { x, y, action: "go_to" })
+
+            await this.subIntention("go_to", { x, y, action: "go_to", args })
 
             if (Math.round(me.x) === x && Math.round(me.y) === y) {
                 await client.pickup()
             }
         } catch (error) {
+            logger.error(`Error in go_pick_up: ${JSON.stringify(error)}`)
             this.stop()
         }
     }
 
-    getPlanName() {
+    get name() {
         return "go_pick_up"
     }
 }
 
+/** @extends Plan */
 class GoPutDown extends Plan {
-    isApplicableTo(desire) {
-        return true
-    }
-
     async execute({ x, y }) {
         try {
             await this.subIntention("go_to", { x, y, action: "go_to" })
@@ -84,20 +83,18 @@ class GoPutDown extends Plan {
                 await client.putdown()
             }
         } catch (error) {
+            logger.error(`Error in go_put_down: ${JSON.stringify(error)}`)
             this.stop()
         }
     }
 
-    getPlanName() {
+    get name() {
         return "go_put_down"
     }
 }
 
+/** @extends Plan */
 class GoRandom extends Plan {
-    isApplicableTo(desire) {
-        return true
-    }
-
     async execute() {
         try {
             // pick a random point in the map
@@ -105,64 +102,80 @@ class GoRandom extends Plan {
             const y = Math.floor(Math.random() * grid[0].length)
 
             if (grid[x][y] !== 0) {
-                console.log(`(${x}, ${y})`)
+                logger.info(`(${x}, ${y})`)
                 await this.subIntention("go_to", { x, y, action: "go_to" })
             }
         } catch (error) {
+            logger.error(`Error in go_random: ${JSON.stringify(error)}`)
             this.stop()
         }
     }
 
-    getPlanName() {
+    get name() {
         return "go_random"
     }
 }
 
+/** @extends Plan */
 class BlindMove extends Plan {
+    /**
+     * @param {Option} desire
+     * @returns {boolean}
+     */
     isApplicableTo(desire) {
+        if (desire.args?.maxSteps) {
+            const path = finder.findPath(me, desire, pathFindingGrid)
+            if (path.length > desire.args.maxSteps) {
+                return false
+            }
+        }
+
+        logger.info(`desire ${JSON.stringify(desire)} is applicable`)
         return true
     }
 
     async execute({ x, y }) {
-        const path = finder.findPath(me, { x: x, y: y }, pathFindingGrid)
+        try {
 
-        const maxAttempts = (1000 / speed) * 10
-        var attempts = 0
+            const maxAttempts = (1000 / speed) * 5
+            var attempts = 0
 
-        var i = 0
-        while (i < path.length) {
-            const coord = path.path[i]
-            const x = Math.round(me.x)
-            const y = Math.round(me.y)
+            const path = finder.findPath(me, { x, y }, pathFindingGrid)
 
-            if (x == coord.x - 1) {
-                await client.move("right")
-            } else if (x == coord.x + 1) {
-                await client.move("left")
-            } else if (y == coord.y - 1) {
-                await client.move("up")
-            } else if (y == coord.y + 1) {
-                await client.move("down")
-            }
+            var i = 0
+            while (i < path.length) {
+                const coord = path.path[i]
+                const x = Math.round(me.x)
+                const y = Math.round(me.y)
 
-            if (Math.round(x) !== coord.x && Math.round(y) !== coord.y) {
-                if (attempts === maxAttempts) {
-                    throw new Error(
-                        `Impossible to reach the end of the path, it should be (${coord.x}, ${coord.y}) but it is (${x},${y})`,
-                    )
+                if (x == coord.x - 1) {
+                    await client.move("right")
+                } else if (x == coord.x + 1) {
+                    await client.move("left")
+                } else if (y == coord.y - 1) {
+                    await client.move("up")
+                } else if (y == coord.y + 1) {
+                    await client.move("down")
                 }
 
-                attempts++
-                console.log("retry n:", attempts)
-            } else {
-                i++
-                attempts = 0
-            }
-        }
-    }
+                if (Math.round(x) !== coord.x && Math.round(y) !== coord.y) {
+                    if (attempts === maxAttempts) {
+                        throw new Error(
+                            `Impossible to reach the end of the path, it should be (${coord.x}, ${coord.y}) but it is (${x},${y})`,
+                        )
+                    }
 
-    getPlanName() {
-        return "go_to"
+                    attempts++
+                    logger.info(`retry n: ${attempts}`)
+                } else {
+                    i++
+                    attempts = 0
+                }
+            }
+        } catch (error) {
+            logger.error(`Error in go_to: ${JSON.stringify(error)}`)
+            this.stop()
+        }
     }
 }
 

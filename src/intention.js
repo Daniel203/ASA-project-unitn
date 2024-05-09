@@ -1,6 +1,6 @@
 import { parcels, me } from "./run.js"
-import { plans, Plan } from "./plan.js"
-import { distance } from "./utils.js"
+import { plans, Plan} from "./plan.js"
+import {logger} from "./logger.js"
 
 class IntentionRevision {
     /** @type {Array<Intention>} */
@@ -25,7 +25,7 @@ class IntentionRevision {
                 }
 
                 await intention.achieve().catch((error) => {
-                    console.log("Failed intention", intention.predicate, "with error:", error)
+                    logger.info("Failed intention", intention.predicate, "with error:", error)
                 })
 
                 this.intention_queue.shift()
@@ -37,13 +37,13 @@ class IntentionRevision {
     }
 
     log(...args) {
-        console.log(...args)
+        logger.info(...args)
     }
 }
 
 class IntentionRevisionRevise extends IntentionRevision {
     async push(predicate) {
-        // console.log("Revising intention queue. Received", ...predicate)
+        // logger.info("Revising intention queue. Received", ...predicate)
         // - order intentions based on utility function (reward - cost) (for example, parcel score minus distance)
         // - eventually stop current one
         // - evaluate validity of intention
@@ -51,7 +51,6 @@ class IntentionRevisionRevise extends IntentionRevision {
         // TODO: sort di go_pick_up in base alla distanza
 
         // Check if already queued
-        console.log(this.intention_queue.map((x) => x.predicate))
         if (this.intention_queue.find((i) => i.predicate.id == predicate.id)) {
             return
         }
@@ -80,7 +79,8 @@ class IntentionRevisionRevise extends IntentionRevision {
 
         const intention = new Intention(this, predicate)
         this.intention_queue.push(intention)
-        console.log(this.intention_queue.map((x) => x.predicate))
+
+        logger.info(`intention queue ${JSON.stringify(this.intention_queue.map((x) => x.predicate))}`)
     }
 }
 
@@ -134,7 +134,7 @@ export class Intention {
 
     log(...args) {
         if (this.#parent && this.#parent.log) this.#parent.log("\t", ...args)
-        else console.log(...args)
+        else logger.info(...args)
     }
 
     #started = false
@@ -156,7 +156,7 @@ export class Intention {
                 const plan_res = await this.#current_plan.execute(this.predicate)
                 return plan_res
             } catch (error) {
-                console.error(error)
+                logger.error(error)
             }
         }
 
