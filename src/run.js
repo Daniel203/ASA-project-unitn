@@ -1,7 +1,7 @@
 import { DeliverooApi } from "@unitn-asa/deliveroo-js-client"
 import { distance, sleep, getNearestDelivery } from "./utils.js"
 import "./types.js"
-import { myAgent } from "./intention.js"
+import { myAgent } from "./agent.js"
 import { logger } from "./logger.js"
 
 import * as pf from "@cetfox24/pathfinding-js"
@@ -38,6 +38,8 @@ export const me = {}
  * 2 - Delivery
  */
 export const grid = []
+
+/** @type {pf.Grid | undefined} */
 export var pathFindingGrid = undefined
 
 client.onYou(({ id, name, x, y, score }) => {
@@ -51,6 +53,8 @@ client.onYou(({ id, name, x, y, score }) => {
 export const rivals = new Map()
 client.onAgentsSensing(async (rival) => {
     for (const p of rival) {
+        p.x = Math.round(p.x)
+        p.y = Math.round(p.y)
         rivals.set(p.id, p)
     }
 })
@@ -126,6 +130,7 @@ function agentLoop() {
                     y: parcel.y,
                     id: parcel.id,
                     value: parcelValueNow,
+                    args: {maxSteps: (parcelValueNow * speedParcel * 1000) / speed},
                 })
             } else {
                 parcelsToDelete.push(parcel.id)
@@ -137,6 +142,8 @@ function agentLoop() {
     parcelsToDelete.forEach((p) => parcels.delete(p))
 
     deliveries.sort((a, b) => distance(me, a) - distance(me, b))
+
+    /** @type {Option} */
     var bestOptionPutDown
     if (deliveries.length > 0) {
         const bestDelivery = deliveries[0]
@@ -211,7 +218,7 @@ function agentLoop() {
                 action: "go_random",
                 id: "random",
             }
-            logger.info("RANDOM")
+
             myAgent.push(goRandomOption)
         }
     }

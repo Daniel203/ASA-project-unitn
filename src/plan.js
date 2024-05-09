@@ -14,6 +14,13 @@ const finder = new pf.AStar()
  * @classdesc A plan is a high level abstraction of a sequence of intentions
  */
 export class Plan {
+    // #stopped = false
+    // get stopped() {
+    //     return this.#stopped
+    // }
+
+    #abortController = new AbortController()
+
     stop() {
         logger.info(
             `stop plan and all sub intentions, ${this.#sub_intentions.forEach((i) => JSON.stringify(i.predicate))}`,
@@ -45,7 +52,20 @@ export class Plan {
         return true
     }
 
-    async execute({ x, y }) {}
+    async execute({ x, y, args }) {
+        try {
+            await this.executeWithSignal({ x, y, args }, this.#abortController.signal)
+        } catch (error) {
+            if (error.name !== "AbortError") {
+                logger.error(`Error in plan: ${JSON.stringify(error)}`)
+                throw error
+            }
+        } finally {
+            this.#abortController = new AbortController()
+        }
+    }
+
+    async executeWithSignal({ x, y, args }, signal) {}
 
     get name() {
         return "plan"
@@ -54,10 +74,9 @@ export class Plan {
 
 /** @extends Plan */
 class GoPickUp extends Plan {
-    async execute({ x, y, args }) {
+    async executeWithSignal({ x, y, args }, signal) {
         try {
-
-            await this.subIntention("go_to", { x, y, action: "go_to", args })
+            await this.subIntention("go_to", { x, y, action: "go_to", args})
 
             if (Math.round(me.x) === x && Math.round(me.y) === y) {
                 await client.pickup()
@@ -75,7 +94,7 @@ class GoPickUp extends Plan {
 
 /** @extends Plan */
 class GoPutDown extends Plan {
-    async execute({ x, y }) {
+    async executeWithSignal({ x, y, args }, signal) {
         try {
             await this.subIntention("go_to", { x, y, action: "go_to" })
 
@@ -95,7 +114,7 @@ class GoPutDown extends Plan {
 
 /** @extends Plan */
 class GoRandom extends Plan {
-    async execute() {
+    async executeWithSignal({ x, y, args }, signal) {
         try {
             // pick a random point in the map
             const x = Math.floor(Math.random() * grid.length)
@@ -134,9 +153,8 @@ class BlindMove extends Plan {
         return true
     }
 
-    async execute({ x, y }) {
+    async executeWithSignal({ x, y, args}, signal) {
         try {
-
             const maxAttempts = (1000 / speed) * 5
             var attempts = 0
 
