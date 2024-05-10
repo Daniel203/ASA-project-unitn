@@ -59,15 +59,19 @@ export function getOptionScore(parcel, dist, rivals) {
     const valueWeight = 3
     const rivalsWeight = 3
     let score = 0
+    if (speedParcel == 0) {
+        score = 1000 - dist
+    } else {
+        if (rivals.size > 0) {
+            const nearestRival = [...rivals.values()].sort(
+                (a, b) => distance(parcel, a) - distance(parcel, b),
+            )[0]
+            score = distance(parcel, nearestRival)
+        }
 
-    if (rivals.size > 0) {
-        const nearestRival = [...rivals.values()].sort(
-            (a, b) => distance(parcel, a) - distance(parcel, b),
-        )[0]
-        score = distance(parcel, nearestRival)
+        score = dist * distanceWeight + parcel.value * valueWeight + score * rivalsWeight
     }
 
-    score = dist * distanceWeight + parcel.value * valueWeight + score * rivalsWeight
     return score
 }
 

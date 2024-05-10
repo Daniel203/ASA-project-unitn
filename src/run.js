@@ -1,5 +1,5 @@
 import { DeliverooApi } from "@unitn-asa/deliveroo-js-client"
-import { distance, sleep, getNearestDelivery } from "./utils.js"
+import { distance, sleep, getNearestDelivery, getOptionScore } from "./utils.js"
 import "./types.js"
 import { myAgent } from "./agent.js"
 import { logger } from "./logger.js"
@@ -118,10 +118,16 @@ function agentLoop() {
     const options = []
 
     const parcelsToDelete = []
+
     for (const parcel of parcels.values()) {
         if (!parcel.carriedBy) {
-            const parcelValueNow =
-                parcel.reward - Math.round((Date.now() - parcel.created_at) / (speedParcel * 1000))
+            var parcelValueNow = parcel.reward
+
+            if (speedParcel != 0) {
+                parcelValueNow =
+                    parcel.reward -
+                    Math.round((Date.now() - parcel.created_at) / (speedParcel * 1000))
+            }
 
             if (parcelValueNow > 0) {
                 options.push({
@@ -130,7 +136,10 @@ function agentLoop() {
                     y: parcel.y,
                     id: parcel.id,
                     value: parcelValueNow,
-                    args: {maxSteps: (parcelValueNow * speedParcel * 1000) / speed},
+                    args: {
+                        maxSteps:
+                            speedParcel != 0 ? (parcelValueNow * speedParcel * 1000) / speed : 0,
+                    },
                 })
             } else {
                 parcelsToDelete.push(parcel.id)
@@ -164,10 +173,10 @@ function agentLoop() {
     for (const option of options) {
         if (option.action == "go_pick_up") {
             let dist = distance(me, option)
-            // let score = getOptionScore(option, dist, rivals)
-            if (option.value / dist > bestScorePickUp) {
+            let score = getOptionScore(option, dist, rivals)
+            if (score > bestScorePickUp) {
                 bestOptionPickUp = option
-                bestScorePickUp = option.value / dist
+                bestScorePickUp = score
             }
         }
     }
@@ -183,23 +192,36 @@ function agentLoop() {
             if (myParcels.length == maxParcels) {
                 potentialScorePickUp = 0
             } else {
-                // let minDistanceDel = getNearestDelivery(bestOptionPickUp, deliveries)
-                potentialScorePickUp = Math.max(
-                    0,
-                    bestOptionPickUp.value,
-                    /*actualScoreMyParcels -
-                        (distance(me, bestOptionPickUp) * speed) / 1000 +
-                        bestOptionPickUp.value -
-                        (minDistanceDel * speedParcel) / 1000,*/
-                )
+                if (speedParcel == 0) {
+                    potentialScorePickUp = 1000 - distance(me, bestOptionPickUp)
+                } else {
+                    let minDistanceDel = getNearestDelivery(bestOptionPickUp, deliveries)
+                    potentialScorePickUp = Math.max(
+                        0,
+                        bestOptionPickUp.value / (distance(me, bestOptionPickUp) * minDistanceDel),
+                        /*actualScoreMyParcels -
+                            (distance(me, bestOptionPickUp) * speed) / 1000 +
+                            bestOptionPickUp.value -
+                            (minDistanceDel * speedParcel) / 1000,*/
+                    )
+                }
             }
         }
 
         if (bestOptionPutDown) {
-            potentialScorePutDown = Math.max(
-                0,
-                actualScoreMyParcels - (distance(me, bestOptionPutDown) * speed) / 1000,
-            )
+            if (myParcels.length == 0) {
+                bestOptionPutDown = 0
+            } else {
+                if (speedParcel == 0) {
+                    potentialScorePutDown = 1000 - distance(me, bestOptionPutDown)
+                } else {
+                    potentialScorePutDown = Math.max(
+                        0,
+                        actualScoreMyParcels -
+                            (distance(me, bestOptionPutDown) * speedParcel) / 1000,
+                    )
+                }
+            }
         }
 
         logger.info(`bestOptionPutDown: ${potentialScorePutDown}`)
