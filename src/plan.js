@@ -1,4 +1,4 @@
-import { client, me, grid, speed, pathFindingGrid, rivals } from "./run.js"
+import { client, me, grid, speed, pathFindingGrid, rivals, parcels } from "./run.js"
 import { Intention } from "./intention.js"
 import { logger } from "./logger.js"
 
@@ -174,6 +174,10 @@ class BlindMove extends Plan {
                     await client.move("up")
                 } else if (y == coord.y + 1) {
                     await client.move("down")
+                }
+
+                if ([...parcels.values()].some(p => p.x == Math.round(me.x) && p.y == Math.round(me.y))) {
+                    await client.pickup()
                 }
 
                 if (Math.round(x) !== coord.x && Math.round(y) !== coord.y) {
