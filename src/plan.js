@@ -25,6 +25,7 @@ export class Plan {
         logger.info(
             `stop plan and all sub intentions, ${this.#sub_intentions.forEach((i) => JSON.stringify(i.predicate))}`,
         )
+        this.#abortController.abort()
         for (const i of this.#sub_intentions) {
             i.stop()
         }
@@ -76,7 +77,7 @@ export class Plan {
 class GoPickUp extends Plan {
     async executeWithSignal({ x, y, args }, signal) {
         try {
-            await this.subIntention("go_to", { x, y, action: "go_to", args})
+            await this.subIntention("go_to", { x, y, action: "go_to", args })
 
             if (Math.round(me.x) === x && Math.round(me.y) === y) {
                 await client.pickup()
@@ -153,7 +154,7 @@ class BlindMove extends Plan {
         return true
     }
 
-    async executeWithSignal({ x, y, args}, signal) {
+    async executeWithSignal({ x, y, args }, signal) {
         try {
             const maxAttempts = (1000 / speed) * 5
             var attempts = 0
@@ -176,7 +177,11 @@ class BlindMove extends Plan {
                     await client.move("down")
                 }
 
-                if ([...parcels.values()].some(p => p.x == Math.round(me.x) && p.y == Math.round(me.y))) {
+                if (
+                    [...parcels.values()].some(
+                        (p) => p.x == Math.round(me.x) && p.y == Math.round(me.y),
+                    )
+                ) {
                     await client.pickup()
                 }
 

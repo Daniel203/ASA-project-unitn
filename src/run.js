@@ -8,9 +8,19 @@ import * as pf from "@cetfox24/pathfinding-js"
 
 export const client = new DeliverooApi(
     "http://localhost:8080",
+    //"https://deliveroojs1.onrender.com",
+    //"https://deliveroojs2.onrender.com",
     //"https://deliveroojs3.onrender.com",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImQzMDEzYjI3NTQ1IiwibmFtZSI6IlZDQVJCIiwiaWF0IjoxNzE0Njc5NjY3fQ.zTwxpdXyHHV2zes7Vw4-SFuLl120KC5XDAgqlgSOxb4",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNiMWY4OWM1NGYxIiwibmFtZSI6IlZJU0EgQ0FTSCBBUFAgUkFDSU5HIEJVTExTIiwiaWF0IjoxNzE1MjkwODc2fQ.6vWN1r-dra_rb1HeXnwCS9dH42HNQETMHaEQtXAV0cw",
 )
+/*
+TO DO:
+1. cambia azione quando si blocca per avversario o mappa ostile
+2. migliorare parte stop quando vede un percorso migliore durante un random / pick up / put down
+3. possibilità di accelerarlo tenendo il percorso A* precedentemente calcolato
+*/
+/** @type {pf.AStar} */
+const finder = new pf.AStar()
 
 export var speedParcel = 0
 export var speed = 0
@@ -150,7 +160,13 @@ function agentLoop() {
     // remove outdated parcels
     parcelsToDelete.forEach((p) => parcels.delete(p))
 
-    deliveries.sort((a, b) => distance(me, a) - distance(me, b))
+    deliveries.sort(
+        (a, b) =>
+            finder.findPath({ x: Math.round(me.x), y: Math.round(me.y) }, a, pathFindingGrid)
+                .length -
+            finder.findPath({ x: Math.round(me.x), y: Math.round(me.y) }, b, pathFindingGrid)
+                .length,
+    )
 
     /** @type {Option} */
     var bestOptionPutDown
@@ -172,7 +188,11 @@ function agentLoop() {
 
     for (const option of options) {
         if (option.action == "go_pick_up") {
-            let dist = distance(me, option)
+            let dist = finder.findPath(
+                { x: Math.round(me.x), y: Math.round(me.y) },
+                option,
+                pathFindingGrid,
+            ).length //distance(me, option)
             let score = getOptionScore(option, dist, rivals)
             if (score > bestScorePickUp) {
                 bestOptionPickUp = option
@@ -193,17 +213,49 @@ function agentLoop() {
                 potentialScorePickUp = 0
             } else {
                 if (speedParcel == 0) {
-                    potentialScorePickUp = 1000 - distance(me, bestOptionPickUp)
+                    potentialScorePickUp =
+                        1000 -
+                        finder.findPath(
+                            { x: Math.round(me.x), y: Math.round(me.y) },
+                            bestOptionPickUp,
+                            pathFindingGrid,
+                        ).length //distance(me, bestOptionPickUp)
                 } else {
-                    let minDistanceDel = getNearestDelivery(bestOptionPickUp, deliveries)
-                    potentialScorePickUp = Math.max(
-                        0,
-                        bestOptionPickUp.value / (distance(me, bestOptionPickUp) * minDistanceDel),
-                        /*actualScoreMyParcels -
-                            (distance(me, bestOptionPickUp) * speed) / 1000 +
-                            bestOptionPickUp.value -
-                            (minDistanceDel * speedParcel) / 1000,*/
-                    )
+                    if (deliveries.length > 0) {
+                        let deliveryNearby = [...deliveries.values()].sort(
+                            (a, b) =>
+                                finder.findPath(
+                                    { x: Math.round(me.x), y: Math.round(me.y) },
+                                    a,
+                                    pathFindingGrid,
+                                ).length -
+                                finder.findPath(
+                                    { x: Math.round(me.x), y: Math.round(me.y) },
+                                    b,
+                                    pathFindingGrid,
+                                ).length,
+                        )[0]
+                        potentialScorePickUp = Math.max(
+                            0,
+                            actualScoreMyParcels -
+                                finder.findPath(
+                                    { x: Math.round(me.x), y: Math.round(me.y) },
+                                    bestOptionPickUp,
+                                    pathFindingGrid,
+                                ).length +
+                                bestOptionPickUp.value -
+                                finder.findPath(
+                                    { x: Math.round(me.x), y: Math.round(me.y) },
+                                    deliveryNearby,
+                                    pathFindingGrid,
+                                ).length,
+                            //bestOptionPickUp.value / (distance(me, bestOptionPickUp) * minDistanceDel),
+                            /*actualScoreMyParcels -
+                                (distance(me, bestOptionPickUp) * speed) / 1000 +
+                                bestOptionPickUp.value -
+                                (minDistanceDel * speedParcel) / 1000,*/
+                        )
+                    }
                 }
             }
         }
@@ -213,12 +265,23 @@ function agentLoop() {
                 bestOptionPutDown = 0
             } else {
                 if (speedParcel == 0) {
-                    potentialScorePutDown = 1000 - distance(me, bestOptionPutDown)
+                    potentialScorePutDown =
+                        1000 -
+                        5 -
+                        finder.findPath(
+                            { x: Math.round(me.x), y: Math.round(me.y) },
+                            bestOptionPutDown,
+                            pathFindingGrid,
+                        ).length //distance(me, bestOptionPutDown)
                 } else {
                     potentialScorePutDown = Math.max(
                         0,
                         actualScoreMyParcels -
-                            (distance(me, bestOptionPutDown) * speedParcel) / 1000,
+                            finder.findPath(
+                                { x: Math.round(me.x), y: Math.round(me.y) },
+                                bestOptionPutDown,
+                                pathFindingGrid,
+                            ).length,
                     )
                 }
             }
