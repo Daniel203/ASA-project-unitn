@@ -92,3 +92,11 @@ export function getNearestDelivery(point, deliveries) {
 
     return nearest
 }
+
+export async function getExecutionTime(f, ...args) {
+    var start = new Date().getTime();
+    await f(...args)
+    var end = new Date().getTime();
+    var dur = end - start;
+    return dur
+  }

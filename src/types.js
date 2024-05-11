@@ -26,6 +26,7 @@
 /** 
  * @typedef {Object} OptionMoreArg
  * @property {number | undefined} maxSteps - the maximum number of steps to reach the target before the target value is 0
+ * @property {Array<Point>} path
  */
 
 /**
@@ -35,10 +36,14 @@
  * @property {number} y
  * @property {string} carriedBy
  * @property {number} reward
+ * @property {Array<Point>} path
  */
 
 /**
- * @typedef {Point} Delivery
+ * @typedef {Object} Delivery
+ * @property {number} x
+ * @property {number} y
+ * @property {Array<Point>} path
  */
 
 /**

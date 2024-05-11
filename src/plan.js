@@ -1,4 +1,4 @@
-import { client, me, grid, speed, pathFindingGrid, rivals, parcels } from "./run.js"
+import { client, me, grid, speed, pathFindingGrid, rivals, parcels, deliveries } from "./run.js"
 import { Intention } from "./intention.js"
 import { logger } from "./logger.js"
 
@@ -14,16 +14,11 @@ const finder = new pf.AStar()
  * @classdesc A plan is a high level abstraction of a sequence of intentions
  */
 export class Plan {
-    // #stopped = false
-    // get stopped() {
-    //     return this.#stopped
-    // }
-
     #abortController = new AbortController()
 
     stop() {
-        logger.info(
-            `stop plan and all sub intentions, ${this.#sub_intentions.forEach((i) => JSON.stringify(i.predicate))}`,
+        logger.warn(
+            `Stopping plan ${this.name}`,
         )
         this.#abortController.abort()
         for (const i of this.#sub_intentions) {
@@ -58,7 +53,7 @@ export class Plan {
             await this.executeWithSignal({ x, y, args }, this.#abortController.signal)
         } catch (error) {
             if (error.name !== "AbortError") {
-                logger.error(`Error in plan: ${JSON.stringify(error)}`)
+                logger.error(`Error in plan: ${error}`)
                 throw error
             }
         } finally {
@@ -68,8 +63,9 @@ export class Plan {
 
     async executeWithSignal({ x, y, args }, signal) {}
 
+    #name = "plan"
     get name() {
-        return "plan"
+        return this.#name
     }
 }
 
@@ -83,13 +79,14 @@ class GoPickUp extends Plan {
                 await client.pickup()
             }
         } catch (error) {
-            logger.error(`Error in go_pick_up: ${JSON.stringify(error)}`)
+            logger.error(`Error in go_pick_up: ${error}`)
             this.stop()
         }
     }
 
+    #name = "go_pick_up"
     get name() {
-        return "go_pick_up"
+        return this.#name
     }
 }
 
@@ -103,13 +100,14 @@ class GoPutDown extends Plan {
                 await client.putdown()
             }
         } catch (error) {
-            logger.error(`Error in go_put_down: ${JSON.stringify(error)}`)
+            logger.error(`Error in go_put_down: ${error}`)
             this.stop()
         }
     }
 
+    #name = "go_put_down"
     get name() {
-        return "go_put_down"
+        return this.#name
     }
 }
 
@@ -126,13 +124,14 @@ class GoRandom extends Plan {
                 await this.subIntention("go_to", { x, y, action: "go_to" })
             }
         } catch (error) {
-            logger.error(`Error in go_random: ${JSON.stringify(error)}`)
+            logger.error(`Error in go_random: ${error}`)
             this.stop()
         }
     }
 
+    #name = "go_random"
     get name() {
-        return "go_random"
+        return this.#name
     }
 }
 
@@ -185,6 +184,10 @@ class BlindMove extends Plan {
                     await client.pickup()
                 }
 
+                if ( deliveries.some( (d) => d.x == Math.round(me.x) && d.y == Math.round(me.y))) {
+                    await client.putdown()
+                }
+
                 if (Math.round(x) !== coord.x && Math.round(y) !== coord.y) {
                     if (attempts === maxAttempts) {
                         throw new Error(
@@ -200,9 +203,14 @@ class BlindMove extends Plan {
                 }
             }
         } catch (error) {
-            logger.error(`Error in go_to: ${JSON.stringify(error)}`)
+            logger.error(`Error in go_to: ${error}`)
             this.stop()
         }
+    }
+
+    #name = "go_to"
+    get name() {
+        return this.#name
     }
 }
 

@@ -1,5 +1,5 @@
 import { DeliverooApi } from "@unitn-asa/deliveroo-js-client"
-import { distance, sleep, getNearestDelivery, getOptionScore } from "./utils.js"
+import { distance, sleep, getNearestDelivery, getOptionScore, getExecutionTime} from "./utils.js"
 import "./types.js"
 import { myAgent } from "./agent.js"
 import { logger } from "./logger.js"
@@ -26,6 +26,7 @@ export var speedParcel = 0
 export var speed = 0
 export var maxParcels = 0
 export var distanceVisibility = 0
+export var agentObservationDistance
 
 client.onConfig((x) => {
     distanceVisibility = parseInt(x.PARCELS_OBSERVATION_DISTANCE)
@@ -35,6 +36,12 @@ client.onConfig((x) => {
         speedParcel = 0
     } else {
         speedParcel = parseInt(x.PARCEL_DECADING_INTERVAL)
+    }
+
+    if (x.AGENTS_OBSERVATION_DISTANCE == "infinite") {
+        agentObservationDistance = Number.MAX_SAFE_INTEGER
+    } else {
+        agentObservationDistance = x.AGENTS_OBSERVATION_DISTANCE
     }
 })
 
@@ -60,12 +67,21 @@ client.onYou(({ id, name, x, y, score }) => {
     me.score = score
 })
 
+// @type {Map<string, Rival>}
 export const rivals = new Map()
-client.onAgentsSensing(async (rival) => {
-    for (const p of rival) {
+client.onAgentsSensing(async (_rivals) => {
+    for (const p of _rivals) {
         p.x = Math.round(p.x)
         p.y = Math.round(p.y)
         rivals.set(p.id, p)
+    }
+
+    for (const r of rivals.values()) {
+        if (distance({x: Math.round(me.x), y: Math.round(me.y)}, r) <= agentObservationDistance) {
+            pathFindingGrid.setSolid(r.x, r.y, true)
+        } else {
+            pathFindingGrid.setSolid(r.x, r.y, false)
+        }
     }
 })
 
@@ -102,7 +118,7 @@ client.onParcelsSensing(async (perceived_parcels) => {
     }
 })
 
-/** @type {Array<Point>} */
+/** @type {Array<Delivery>} */
 export const deliveries = []
 client.onTile(async (x, y, delivery) => {
     if (grid.length == 0) await sleep(1000)
@@ -124,6 +140,8 @@ client.onNotTile(async (x, y) => {
 })
 
 function agentLoop() {
+    calculatePaths()
+
     /** @type {Array<Option>} */
     const options = []
 
@@ -149,6 +167,7 @@ function agentLoop() {
                     args: {
                         maxSteps:
                             speedParcel != 0 ? (parcelValueNow * speedParcel * 1000) / speed : 0,
+                        path: parcel.path,
                     },
                 })
             } else {
@@ -160,13 +179,7 @@ function agentLoop() {
     // remove outdated parcels
     parcelsToDelete.forEach((p) => parcels.delete(p))
 
-    deliveries.sort(
-        (a, b) =>
-            finder.findPath({ x: Math.round(me.x), y: Math.round(me.y) }, a, pathFindingGrid)
-                .length -
-            finder.findPath({ x: Math.round(me.x), y: Math.round(me.y) }, b, pathFindingGrid)
-                .length,
-    )
+    deliveries.sort((a, b) => a.path.length - b.path.length)
 
     /** @type {Option} */
     var bestOptionPutDown
@@ -178,6 +191,7 @@ function agentLoop() {
             y: bestDelivery.y,
             id: `D(${bestDelivery.x}, ${bestDelivery.y})`,
             value: 0,
+            args: {path: bestDelivery.path}
         }
     }
 
@@ -215,40 +229,18 @@ function agentLoop() {
                 if (speedParcel == 0) {
                     potentialScorePickUp =
                         1000 -
-                        finder.findPath(
-                            { x: Math.round(me.x), y: Math.round(me.y) },
-                            bestOptionPickUp,
-                            pathFindingGrid,
-                        ).length //distance(me, bestOptionPickUp)
+                        bestOptionPickUp.args.path.length //distance(me, bestOptionPickUp)
                 } else {
                     if (deliveries.length > 0) {
                         let deliveryNearby = [...deliveries.values()].sort(
-                            (a, b) =>
-                                finder.findPath(
-                                    { x: Math.round(me.x), y: Math.round(me.y) },
-                                    a,
-                                    pathFindingGrid,
-                                ).length -
-                                finder.findPath(
-                                    { x: Math.round(me.x), y: Math.round(me.y) },
-                                    b,
-                                    pathFindingGrid,
-                                ).length,
-                        )[0]
+                            (a, b) => a.path.length - b.path.length)[0]
+
                         potentialScorePickUp = Math.max(
                             0,
                             actualScoreMyParcels -
-                                finder.findPath(
-                                    { x: Math.round(me.x), y: Math.round(me.y) },
-                                    bestOptionPickUp,
-                                    pathFindingGrid,
-                                ).length +
-                                bestOptionPickUp.value -
-                                finder.findPath(
-                                    { x: Math.round(me.x), y: Math.round(me.y) },
-                                    deliveryNearby,
-                                    pathFindingGrid,
-                                ).length,
+                            bestOptionPickUp.args.path.length +
+                            bestOptionPickUp.value -
+                            deliveryNearby.path.length,
                             //bestOptionPickUp.value / (distance(me, bestOptionPickUp) * minDistanceDel),
                             /*actualScoreMyParcels -
                                 (distance(me, bestOptionPickUp) * speed) / 1000 +
@@ -268,20 +260,12 @@ function agentLoop() {
                     potentialScorePutDown =
                         1000 -
                         5 -
-                        finder.findPath(
-                            { x: Math.round(me.x), y: Math.round(me.y) },
-                            bestOptionPutDown,
-                            pathFindingGrid,
-                        ).length //distance(me, bestOptionPutDown)
+                        bestOptionPutDown.args.path.length //distance(me, bestOptionPutDown)
                 } else {
                     potentialScorePutDown = Math.max(
                         0,
                         actualScoreMyParcels -
-                            finder.findPath(
-                                { x: Math.round(me.x), y: Math.round(me.y) },
-                                bestOptionPutDown,
-                                pathFindingGrid,
-                            ).length,
+                        bestOptionPutDown.args.path.length,
                     )
                 }
             }
@@ -311,14 +295,27 @@ function agentLoop() {
     return new Promise((res) => setImmediate(() => res()))
 }
 
-/*
-client.onParcelsSensing(agentLoop)
-client.onAgentsSensing(agentLoop)
-client.onYou(agentLoop)
-*/
+function calculatePaths() {
+    // parcels
+    for (var parcel of parcels.values()) {
+        if (parcel.carriedBy == null) {
+            const path = finder.findPath({ x: Math.round(me.x), y: Math.round(me.y) }, parcel, pathFindingGrid)
+            parcel.path = path.path
+            parcels.set(parcel.id, parcel)
+        }
+    }
+
+    // deliveries
+    for (var i = 0; i < deliveries.length; i++) {
+        const delivery = deliveries[i]
+        const path = finder.findPath({ x: Math.round(me.x), y: Math.round(me.y) }, delivery, pathFindingGrid)
+        delivery.path = path.path
+        deliveries[i] = delivery
+    }
+}
 
 const run = async () => {
-    for (;;) {
+    for (; ;) {
         await agentLoop()
         await sleep(speed)
     }

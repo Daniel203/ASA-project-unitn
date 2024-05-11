@@ -47,6 +47,7 @@ class Agent {
             return
         }
 
+        /*
         if (this.intention_queue.length > 0) {
             const currentIntention = this.intention_queue[0]
 
@@ -63,10 +64,11 @@ class Agent {
                     currentIntention.stop()
                 }
             }
-        }
+        }*/
 
         while (this.intention_queue.length > 0) {
-            this.intention_queue.pop()
+            const curr = this.intention_queue.pop()
+            curr.stop()
         }
 
         this.intention_queue.push(new Intention(this, predicate))
