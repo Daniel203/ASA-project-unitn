@@ -72,7 +72,7 @@ export class Intention {
                 logger.info(
                     `Executing plan "${this.#current_plan.name}" for intention ${JSON.stringify(this.predicate)}`,
                 )
-
+                
                 const plan_res = await this.#current_plan.execute(this.predicate)
                 return plan_res
             } catch (error) {

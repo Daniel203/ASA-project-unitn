@@ -1,5 +1,5 @@
 import { DeliverooApi } from "@unitn-asa/deliveroo-js-client"
-import { distance, sleep, getNearestDelivery, getOptionScore, getExecutionTime} from "./utils.js"
+import { distance, sleep, getNearestDelivery, getOptionScore, getExecutionTime } from "./utils.js"
 import "./types.js"
 import { myAgent } from "./agent.js"
 import { logger } from "./logger.js"
@@ -14,11 +14,12 @@ export const client = new DeliverooApi(
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNiMWY4OWM1NGYxIiwibmFtZSI6IlZJU0EgQ0FTSCBBUFAgUkFDSU5HIEJVTExTIiwiaWF0IjoxNzE1MjkwODc2fQ.6vWN1r-dra_rb1HeXnwCS9dH42HNQETMHaEQtXAV0cw",
 )
 /*
-TO DO:
+TODO:
 1. cambia azione quando si blocca per avversario o mappa ostile
-2. migliorare parte stop quando vede un percorso migliore durante un random / pick up / put down
-3. possibilità di accelerarlo tenendo il percorso A* precedentemente calcolato
+2. [RESOLVED] migliorare parte stop quando vede un percorso migliore durante un random / pick up / put down
+3. [RESOLVED] possibilità di accelerarlo tenendo il percorso A* precedentemente calcolato
 */
+
 /** @type {pf.AStar} */
 const finder = new pf.AStar()
 
@@ -76,13 +77,13 @@ client.onAgentsSensing(async (_rivals) => {
         rivals.set(p.id, p)
     }
 
+    /*
     for (const r of rivals.values()) {
-        if (distance({x: Math.round(me.x), y: Math.round(me.y)}, r) <= agentObservationDistance) {
-            pathFindingGrid.setSolid(r.x, r.y, true)
-        } else {
-            pathFindingGrid.setSolid(r.x, r.y, false)
-        }
+        const dist = distance({ x: Math.round(me.x), y: Math.round(me.y) }, r)
+        const isNear = dist <= agentObservationDistance
+        pathFindingGrid.setSolid(r.x, r.y,  isNear)
     }
+    */
 })
 
 client.onMap((width, height) => {
@@ -157,7 +158,7 @@ function agentLoop() {
                     Math.round((Date.now() - parcel.created_at) / (speedParcel * 1000))
             }
 
-            if (parcelValueNow > 0) {
+            if (parcelValueNow > 0 && parcel.path.length > 0) {
                 options.push({
                     action: "go_pick_up",
                     x: parcel.x,
@@ -180,25 +181,25 @@ function agentLoop() {
     parcelsToDelete.forEach((p) => parcels.delete(p))
 
     deliveries.sort((a, b) => a.path.length - b.path.length)
+    const validDeliveries = deliveries.filter((d) => d.path.length > 0)
 
     /** @type {Option} */
     var bestOptionPutDown
-    if (deliveries.length > 0) {
-        const bestDelivery = deliveries[0]
+    if (validDeliveries.length > 0) {
+        const bestDelivery = validDeliveries[0]
         bestOptionPutDown = {
             action: "go_put_down",
             x: bestDelivery.x,
             y: bestDelivery.y,
             id: `D(${bestDelivery.x}, ${bestDelivery.y})`,
             value: 0,
-            args: {path: bestDelivery.path}
+            args: { path: bestDelivery.path },
         }
     }
 
     /** @type {Option} */
     let bestOptionPickUp
     let bestScorePickUp = 0
-    // let bestOption
 
     for (const option of options) {
         if (option.action == "go_pick_up") {
@@ -207,6 +208,7 @@ function agentLoop() {
                 option,
                 pathFindingGrid,
             ).length //distance(me, option)
+
             let score = getOptionScore(option, dist, rivals)
             if (score > bestScorePickUp) {
                 bestOptionPickUp = option
@@ -227,20 +229,19 @@ function agentLoop() {
                 potentialScorePickUp = 0
             } else {
                 if (speedParcel == 0) {
-                    potentialScorePickUp =
-                        1000 -
-                        bestOptionPickUp.args.path.length //distance(me, bestOptionPickUp)
+                    potentialScorePickUp = 1000 - bestOptionPickUp.args.path.length //distance(me, bestOptionPickUp)
                 } else {
                     if (deliveries.length > 0) {
                         let deliveryNearby = [...deliveries.values()].sort(
-                            (a, b) => a.path.length - b.path.length)[0]
+                            (a, b) => a.path.length - b.path.length,
+                        )[0]
 
                         potentialScorePickUp = Math.max(
                             0,
                             actualScoreMyParcels -
-                            bestOptionPickUp.args.path.length +
-                            bestOptionPickUp.value -
-                            deliveryNearby.path.length,
+                                bestOptionPickUp.args.path.length +
+                                bestOptionPickUp.value -
+                                deliveryNearby.path.length,
                             //bestOptionPickUp.value / (distance(me, bestOptionPickUp) * minDistanceDel),
                             /*actualScoreMyParcels -
                                 (distance(me, bestOptionPickUp) * speed) / 1000 +
@@ -257,15 +258,11 @@ function agentLoop() {
                 bestOptionPutDown = 0
             } else {
                 if (speedParcel == 0) {
-                    potentialScorePutDown =
-                        1000 -
-                        5 -
-                        bestOptionPutDown.args.path.length //distance(me, bestOptionPutDown)
+                    potentialScorePutDown = 1000 - 5 - bestOptionPutDown.args.path.length //distance(me, bestOptionPutDown)
                 } else {
                     potentialScorePutDown = Math.max(
                         0,
-                        actualScoreMyParcels -
-                        bestOptionPutDown.args.path.length,
+                        actualScoreMyParcels - bestOptionPutDown.args.path.length,
                     )
                 }
             }
@@ -283,6 +280,8 @@ function agentLoop() {
 
             myAgent.push(bestOption)
         } else {
+            logger.info("bestOption is go random")
+
             const goRandomOption = {
                 action: "go_random",
                 id: "random",
@@ -290,6 +289,15 @@ function agentLoop() {
 
             myAgent.push(goRandomOption)
         }
+    } else {
+        logger.info("bestOption is go random")
+
+        const goRandomOption = {
+            action: "go_random",
+            id: "random",
+        }
+
+        myAgent.push(goRandomOption)
     }
 
     return new Promise((res) => setImmediate(() => res()))
@@ -299,7 +307,11 @@ function calculatePaths() {
     // parcels
     for (var parcel of parcels.values()) {
         if (parcel.carriedBy == null) {
-            const path = finder.findPath({ x: Math.round(me.x), y: Math.round(me.y) }, parcel, pathFindingGrid)
+            const path = finder.findPath(
+                { x: Math.round(me.x), y: Math.round(me.y) },
+                parcel,
+                pathFindingGrid,
+            )
             parcel.path = path.path
             parcels.set(parcel.id, parcel)
         }
@@ -308,14 +320,24 @@ function calculatePaths() {
     // deliveries
     for (var i = 0; i < deliveries.length; i++) {
         const delivery = deliveries[i]
-        const path = finder.findPath({ x: Math.round(me.x), y: Math.round(me.y) }, delivery, pathFindingGrid)
+        const path = finder.findPath(
+            { x: Math.round(me.x), y: Math.round(me.y) },
+            delivery,
+            pathFindingGrid,
+        )
         delivery.path = path.path
         deliveries[i] = delivery
     }
 }
 
+/*
+client.onAgentsSensing(agentLoop)
+client.onParcelsSensing(agentLoop)
+client.onYou(agentLoop)
+*/
+
 const run = async () => {
-    for (; ;) {
+    for (;;) {
         await agentLoop()
         await sleep(speed)
     }

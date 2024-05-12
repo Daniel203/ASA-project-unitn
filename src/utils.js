@@ -58,6 +58,7 @@ export function getOptionScore(parcel, dist, rivals) {
     const distanceWeight = 4
     const valueWeight = 3
     const rivalsWeight = 3
+
     let score = 0
     if (speedParcel == 0) {
         score = 1000 - dist

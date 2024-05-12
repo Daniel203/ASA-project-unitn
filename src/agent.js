@@ -10,8 +10,15 @@ class Agent {
         return this.#intention_queue
     }
 
+    /** @type {Intention} */
+    #current_intention = null
+
+    get current_intention() {
+        return this.#current_intention
+    }
+
     async loop() {
-        for (;;) {
+        for (; ;) {
             if (this.intention_queue.length > 0) {
                 const intention = this.intention_queue[0]
 
@@ -24,13 +31,19 @@ class Agent {
                     }
                 }
 
-                await intention.achieve().catch((error) => {
-                    logger.warn(
-                        `Failed to achieve intention ${JSON.stringify(intention.predicate)}: ${JSON.stringify(error)}`,
-                    )
-                })
+                this.#current_intention = intention
+                intention.achieve()
+                    .catch((error) => {
+                        logger.warn(
+                            `Failed to achieve intention ${JSON.stringify(intention.predicate)}: ${JSON.stringify(error)}`,
+                        )
+                    })
+                    .finally(() => {
+                        this.intention_queue.shift()
+                        this.#current_intention = null
+                    })
 
-                this.intention_queue.shift()
+
             }
 
             // Postpone next iteration at setImmediate
@@ -43,38 +56,40 @@ class Agent {
     }
 
     async push(predicate) {
+        logger.info(`intention queue before: ${JSON.stringify(this.intention_queue.map((x) => x.predicate))}`)
+        logger.info(`last intention: ${JSON.stringify(this.current_intention?.predicate)}`)
+
         if (this.intention_queue.find((i) => i.predicate.id == predicate.id)) {
+            logger.warn(`Intention already in queue: ${JSON.stringify(predicate)}`)
             return
         }
 
-        /*
-        if (this.intention_queue.length > 0) {
-            const currentIntention = this.intention_queue[0]
+        logger.info(`Intention not in queue: ${JSON.stringify(predicate)}`)
 
-            if (currentIntention.predicate.action == "go_pick_up") {
-                const parcel = parcels.get(currentIntention.predicate.id)
-
-                if (!parcel || (parcel.carriedBy != null && parcel.carriedBy != me.id)) {
-                    currentIntention.stop()
-                }
-            }
-
-            if (currentIntention.predicate.action == "go_random") {
-                if (predicate.action != "go_random") {
-                    currentIntention.stop()
-                }
-            }
-        }*/
+        // if (this.current_intention != null) {
+        //     var currentAction = "" 
+        //     
+        //     if (this.current_intention != null) {
+        //         currentAction = this.current_intention.predicate.action
+        //     }
+        //
+        //     const action = predicate.action
+        //
+        //     if (currentAction == "go_random") {
+        //         if (action == "go_random") {
+        //             return 
+        //         } else {
+        //             this.current_intention.stop()
+        //         }
+        //     }
+        // }
 
         while (this.intention_queue.length > 0) {
             const curr = this.intention_queue.pop()
-            curr.stop()
         }
 
         this.intention_queue.push(new Intention(this, predicate))
-        logger.info(
-            `intention queue ${JSON.stringify(this.intention_queue.map((x) => x.predicate))}`,
-        )
+        logger.warn(`Intentions: ${JSON.stringify(this.intention_queue.map((x) => x.predicate))}`)
     }
 }
 

@@ -1,4 +1,4 @@
-import { client, me, grid, speed, pathFindingGrid, rivals, parcels, deliveries } from "./run.js"
+import { client, me, grid, speed, pathFindingGrid, rivals, parcels, deliveries} from "./run.js"
 import { Intention } from "./intention.js"
 import { logger } from "./logger.js"
 
@@ -115,14 +115,25 @@ class GoPutDown extends Plan {
 class GoRandom extends Plan {
     async executeWithSignal({ x, y, args }, signal) {
         try {
-            // pick a random point in the map
-            const x = Math.floor(Math.random() * grid.length)
-            const y = Math.floor(Math.random() * grid[0].length)
+            var xRand = undefined
+            var yRand = undefined
 
-            if (grid[x][y] !== 0) {
-                logger.info(`(${x}, ${y})`)
-                await this.subIntention("go_to", { x, y, action: "go_to" })
+            while (xRand === undefined || yRand === undefined || grid[xRand][yRand] === 0) {
+                xRand = Math.floor(Math.random() * grid.length)
+                yRand = Math.floor(Math.random() * grid[0].length)
+
+                /*
+                const xMax = Math.min(grid.length - 1, Math.round(me.x) + 5)
+                const xMin = Math.max(0, Math.round(me.x) - 5)
+                xRand = Math.floor(Math.random() * (xMax - xMin) + xMin)
+
+                const yMax = Math.min(grid.length - 1, Math.round(me.y) + 5)
+                const yMin = Math.max(0, Math.round(me.y) - 5)
+                yRand = Math.floor(Math.random() * (yMax - yMin) + yMin)
+                */
             }
+
+            await this.subIntention("go_to", { x: xRand, y: yRand, action: "go_to" })
         } catch (error) {
             logger.error(`Error in go_random: ${error}`)
             this.stop()
@@ -143,8 +154,7 @@ class BlindMove extends Plan {
      */
     isApplicableTo(desire) {
         if (desire.args?.maxSteps) {
-            const path = finder.findPath(me, desire, pathFindingGrid)
-            if (path.length > desire.args.maxSteps) {
+            if (desire?.path?.length > desire?.args?.maxSteps) {
                 return false
             }
         }
@@ -155,14 +165,20 @@ class BlindMove extends Plan {
 
     async executeWithSignal({ x, y, args }, signal) {
         try {
-            const maxAttempts = (1000 / speed) * 5
+            // const maxAttempts = (1000 / speed) * 5
+            const maxAttempts = 10
             var attempts = 0
 
-            const path = finder.findPath(me, { x, y }, pathFindingGrid)
+            var path = []
+            if (args && args.path && args.path.length > 0) {
+                path = args.path
+            } else {
+                path = finder.findPath({x: Math.round(me.x), y: Math.round(me.y)}, { x, y }, pathFindingGrid).path
+            }
 
             var i = 0
             while (i < path.length) {
-                const coord = path.path[i]
+                const coord = path[i]
                 const x = Math.round(me.x)
                 const y = Math.round(me.y)
 
