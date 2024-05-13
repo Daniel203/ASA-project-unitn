@@ -10,15 +10,24 @@ class Agent {
         return this.#intention_queue
     }
 
-    /** @type {Intention} */
+    /** @type {Intention | null} */
     #current_intention = null
 
     get current_intention() {
         return this.#current_intention
     }
 
+    /** @type {Intention | null} */
+    #last_rejected_intention = null
+
+    get last_rejected_intention() {
+        return this.#last_rejected_intention
+    }
+    
+
+
     async loop() {
-        for (; ;) {
+        for (;;) {
             if (this.intention_queue.length > 0) {
                 const intention = this.intention_queue[0]
 
@@ -32,18 +41,17 @@ class Agent {
                 }
 
                 this.#current_intention = intention
-                intention.achieve()
-                    .catch((error) => {
-                        logger.warn(
-                            `Failed to achieve intention ${JSON.stringify(intention.predicate)}: ${JSON.stringify(error)}`,
-                        )
-                    })
-                    .finally(() => {
-                        this.intention_queue.shift()
-                        this.#current_intention = null
-                    })
-
-
+                try {
+                    await intention.achieve()
+                    this.#last_rejected_intention = null
+                } catch (error) {
+                    logger.warn(`${error}`)
+                    this.#last_rejected_intention = intention
+                    logger.error(`last removed intention: ${JSON.stringify(this.last_rejected_intention.predicate)}`)
+                } finally {
+                    this.intention_queue.shift()
+                    this.#current_intention = null
+                }
             }
 
             // Postpone next iteration at setImmediate
@@ -56,8 +64,18 @@ class Agent {
     }
 
     async push(predicate) {
-        logger.info(`intention queue before: ${JSON.stringify(this.intention_queue.map((x) => x.predicate))}`)
+        logger.info(
+            `intention queue before: ${JSON.stringify(this.intention_queue.map((x) => x.predicate))}`,
+        )
+
         logger.info(`last intention: ${JSON.stringify(this.current_intention?.predicate)}`)
+
+        /* TODO: check if it works
+        if (this.last_rejected_intention?.predicate?.id === predicate.id) {
+            logger.warn(`This intention has just got been rejected: ${JSON.stringify(predicate)}`)
+            return
+        }
+        */
 
         if (this.intention_queue.find((i) => i.predicate.id == predicate.id)) {
             logger.warn(`Intention already in queue: ${JSON.stringify(predicate)}`)
@@ -66,29 +84,13 @@ class Agent {
 
         logger.info(`Intention not in queue: ${JSON.stringify(predicate)}`)
 
-        // if (this.current_intention != null) {
-        //     var currentAction = "" 
-        //     
-        //     if (this.current_intention != null) {
-        //         currentAction = this.current_intention.predicate.action
-        //     }
-        //
-        //     const action = predicate.action
-        //
-        //     if (currentAction == "go_random") {
-        //         if (action == "go_random") {
-        //             return 
-        //         } else {
-        //             this.current_intention.stop()
-        //         }
-        //     }
-        // }
-
-        while (this.intention_queue.length > 0) {
-            const curr = this.intention_queue.pop()
+        // keep only the last 5 elements, so if the last intention added is not valid,
+        // there is immediatly a new one to use
+        while (this.intention_queue.length > 5) {
+            this.intention_queue.pop()
         }
 
-        this.intention_queue.push(new Intention(this, predicate))
+        this.intention_queue.unshift(new Intention(this, predicate))
         logger.warn(`Intentions: ${JSON.stringify(this.intention_queue.map((x) => x.predicate))}`)
     }
 }

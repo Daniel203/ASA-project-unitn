@@ -77,13 +77,11 @@ client.onAgentsSensing(async (_rivals) => {
         rivals.set(p.id, p)
     }
 
-    /*
-    for (const r of rivals.values()) {
+    /* for (const r of rivals.values()) {
         const dist = distance({ x: Math.round(me.x), y: Math.round(me.y) }, r)
         const isNear = dist <= agentObservationDistance
         pathFindingGrid.setSolid(r.x, r.y,  isNear)
-    }
-    */
+    } */
 })
 
 client.onMap((width, height) => {
@@ -141,6 +139,10 @@ client.onNotTile(async (x, y) => {
 })
 
 function agentLoop() {
+    if (pathFindingGrid == undefined) {
+        return
+    }
+
     calculatePaths()
 
     /** @type {Array<Option>} */
@@ -181,7 +183,18 @@ function agentLoop() {
     parcelsToDelete.forEach((p) => parcels.delete(p))
 
     deliveries.sort((a, b) => a.path.length - b.path.length)
-    const validDeliveries = deliveries.filter((d) => d.path.length > 0)
+    const validDeliveries = deliveries.filter((d) => {
+        const path = d.path
+        if (path.length == 0) return false
+
+        for (const p of parcels.values()) {
+            if (Math.round(p.x) == d.x && Math.round(p.y) == d.y) {
+                return false
+            }
+        }
+
+        return true
+    })
 
     /** @type {Option} */
     var bestOptionPutDown
@@ -203,11 +216,7 @@ function agentLoop() {
 
     for (const option of options) {
         if (option.action == "go_pick_up") {
-            let dist = finder.findPath(
-                { x: Math.round(me.x), y: Math.round(me.y) },
-                option,
-                pathFindingGrid,
-            ).length //distance(me, option)
+            const dist = option.args.path.length
 
             let score = getOptionScore(option, dist, rivals)
             if (score > bestScorePickUp) {

@@ -1,6 +1,7 @@
-import { client, me, grid, speed, pathFindingGrid, rivals, parcels, deliveries} from "./run.js"
+import { client, me, grid, speed, pathFindingGrid, rivals, parcels, deliveries } from "./run.js"
 import { Intention } from "./intention.js"
 import { logger } from "./logger.js"
+import { sleep } from "./utils.js"
 
 import * as pf from "@cetfox24/pathfinding-js"
 
@@ -17,9 +18,7 @@ export class Plan {
     #abortController = new AbortController()
 
     stop() {
-        logger.warn(
-            `Stopping plan ${this.name}`,
-        )
+        logger.warn(`Stopping plan ${this.name}`)
         this.#abortController.abort()
         for (const i of this.#sub_intentions) {
             i.stop()
@@ -71,6 +70,25 @@ export class Plan {
 
 /** @extends Plan */
 class GoPickUp extends Plan {
+    /**
+     * @param {Option} desire
+     * @returns {boolean}
+     */
+    isApplicableTo(desire) {
+        /* for (const p of parcels.values()) {
+            if (Math.round(p.x) == desire.x && Math.round(p.y) == desire.y) {
+                return false
+            }
+        } */
+
+        const parcel = parcels.get(desire.id)
+        if (parcel && parcel.carriedBy && parcel.carriedBy !== me.id) {
+            return false
+        }
+
+        return true
+    }
+
     async executeWithSignal({ x, y, args }, signal) {
         try {
             await this.subIntention("go_to", { x, y, action: "go_to", args })
@@ -81,6 +99,7 @@ class GoPickUp extends Plan {
         } catch (error) {
             logger.error(`Error in go_pick_up: ${error}`)
             this.stop()
+            throw error
         }
     }
 
@@ -102,6 +121,7 @@ class GoPutDown extends Plan {
         } catch (error) {
             logger.error(`Error in go_put_down: ${error}`)
             this.stop()
+            throw error
         }
     }
 
@@ -113,30 +133,34 @@ class GoPutDown extends Plan {
 
 /** @extends Plan */
 class GoRandom extends Plan {
+    isApplicableTo(desire) {
+        return pathFindingGrid !== undefined
+    }
+
     async executeWithSignal({ x, y, args }, signal) {
         try {
             var xRand = undefined
             var yRand = undefined
 
-            while (xRand === undefined || yRand === undefined || grid[xRand][yRand] === 0) {
+            /** @type {Array<Point>} */
+            var path = []
+
+            while (!xRand || !yRand || grid[xRand][yRand] === 0 || path.length === 0) {
                 xRand = Math.floor(Math.random() * grid.length)
                 yRand = Math.floor(Math.random() * grid[0].length)
 
-                /*
-                const xMax = Math.min(grid.length - 1, Math.round(me.x) + 5)
-                const xMin = Math.max(0, Math.round(me.x) - 5)
-                xRand = Math.floor(Math.random() * (xMax - xMin) + xMin)
-
-                const yMax = Math.min(grid.length - 1, Math.round(me.y) + 5)
-                const yMin = Math.max(0, Math.round(me.y) - 5)
-                yRand = Math.floor(Math.random() * (yMax - yMin) + yMin)
-                */
+                path = finder.findPath(
+                    { x: Math.round(me.x), y: Math.round(me.y) },
+                    { x: xRand, y: yRand },
+                    pathFindingGrid,
+                ).path
             }
 
             await this.subIntention("go_to", { x: xRand, y: yRand, action: "go_to" })
         } catch (error) {
             logger.error(`Error in go_random: ${error}`)
             this.stop()
+            throw error
         }
     }
 
@@ -170,57 +194,98 @@ class BlindMove extends Plan {
             var attempts = 0
 
             var path = []
-            if (args && args.path && args.path.length > 0) {
+
+            if (path[0]?.x == Math.round(me.x) && path[0]?.y == Math.round(me.y)) {
                 path = args.path
             } else {
-                path = finder.findPath({x: Math.round(me.x), y: Math.round(me.y)}, { x, y }, pathFindingGrid).path
+                path = finder.findPath(
+                    { x: Math.round(me.x), y: Math.round(me.y) },
+                    { x, y },
+                    pathFindingGrid,
+                ).path
             }
 
             var i = 0
             while (i < path.length) {
                 const coord = path[i]
-                const x = Math.round(me.x)
-                const y = Math.round(me.y)
+                var xMe = Math.round(me.x)
+                var yMe = Math.round(me.y)
 
-                if (x == coord.x - 1) {
-                    await client.move("right")
-                } else if (x == coord.x + 1) {
-                    await client.move("left")
-                } else if (y == coord.y - 1) {
-                    await client.move("up")
-                } else if (y == coord.y + 1) {
-                    await client.move("down")
+                /** @type {{x:number,y:number}|false} */
+                var res = undefined
+
+                if (xMe == coord.x - 1) {
+                    res = await client.move("right")
+                } else if (xMe == coord.x + 1) {
+                    res = await client.move("left")
+                } else if (yMe == coord.y - 1) {
+                    res = await client.move("up")
+                } else if (yMe == coord.y + 1) {
+                    res = await client.move("down")
                 }
+                
+                xMe = Math.round(me.x)
+                yMe = Math.round(me.y)
 
-                if (
-                    [...parcels.values()].some(
-                        (p) => p.x == Math.round(me.x) && p.y == Math.round(me.y),
-                    )
-                ) {
+                const isOverParcel = [...parcels.values()].some((p) => p.x == xMe && p.y == yMe)
+                if (isOverParcel) {
                     await client.pickup()
                 }
 
-                if ( deliveries.some( (d) => d.x == Math.round(me.x) && d.y == Math.round(me.y))) {
+                const isOverDelivery = deliveries.some((d) => d.x == xMe && d.y == yMe)
+                if (isOverDelivery) {
                     await client.putdown()
                 }
 
-                if (Math.round(x) !== coord.x && Math.round(y) !== coord.y) {
+                if (res === false) {
                     if (attempts === maxAttempts) {
                         throw new Error(
-                            `Impossible to reach the end of the path, it should be (${coord.x}, ${coord.y}) but it is (${x},${y})`,
+                            `Impossible to reach the end of the path, it should be (${coord.x}, ${coord.y}) but it is (${xMe},${yMe})`,
                         )
                     }
 
                     attempts++
-                    logger.info(`retry n: ${attempts}`)
+                    logger.info(`retry ${attempts} / ${maxAttempts}`)
                 } else {
                     i++
                     attempts = 0
                 }
+
+                /*  NOTE: removed this part because now we use the result of client.move to check if the movement was successful
+                xMe = Math.round(me.x)
+                yMe = Math.round(me.y)
+
+                const isOverParcel = [...parcels.values()].some((p) => p.x == xMe && p.y == yMe)
+                if (isOverParcel) {
+                    await client.pickup()
+                }
+
+                const isOverDelivery = deliveries.some((d) => d.x == xMe && d.y == yMe)
+                if (isOverDelivery) {
+                    await client.putdown()
+                }
+                */
+
+                /*
+                if (xMe !== coord.x && yMe !== coord.y) {
+                    if (attempts === maxAttempts) {
+                        throw new Error(
+                            `Impossible to reach the end of the path, it should be (${coord.x}, ${coord.y}) but it is (${xMe},${yMe})`,
+                        )
+                    }
+
+                    attempts++
+                    logger.info(`retry ${attempts} / ${maxAttempts}`)
+                } else {
+                    i++
+                    attempts = 0
+                }
+                */
             }
         } catch (error) {
             logger.error(`Error in go_to: ${error}`)
             this.stop()
+            throw error
         }
     }
 
