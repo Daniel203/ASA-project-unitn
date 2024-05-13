@@ -70,7 +70,7 @@ export function getOptionScore(parcel, dist, rivals) {
             score = distance(parcel, nearestRival)
         }
 
-        score = -dist * distanceWeight + parcel.value * valueWeight + score * rivalsWeight
+        score = -dist * distanceWeight + parcel.value * valueWeight //+ score * rivalsWeight
     }
 
     return score
@@ -95,9 +95,9 @@ export function getNearestDelivery(point, deliveries) {
 }
 
 export async function getExecutionTime(f, ...args) {
-    var start = new Date().getTime();
+    var start = new Date().getTime()
     await f(...args)
-    var end = new Date().getTime();
-    var dur = end - start;
+    var end = new Date().getTime()
+    var dur = end - start
     return dur
-  }
+}

@@ -189,6 +189,7 @@ class BlindMove extends Plan {
 
     async executeWithSignal({ x, y, args }, signal) {
         try {
+            signal.throwIfAborted()
             // const maxAttempts = (1000 / speed) * 5
             const maxAttempts = 10
             var attempts = 0
@@ -205,8 +206,10 @@ class BlindMove extends Plan {
                 ).path
             }
 
+            signal.throwIfAborted()
             var i = 0
             while (i < path.length) {
+                signal.throwIfAborted()
                 const coord = path[i]
                 var xMe = Math.round(me.x)
                 var yMe = Math.round(me.y)
@@ -223,10 +226,11 @@ class BlindMove extends Plan {
                 } else if (yMe == coord.y + 1) {
                     res = await client.move("down")
                 }
-                
+
                 xMe = Math.round(me.x)
                 yMe = Math.round(me.y)
 
+                /*
                 const isOverParcel = [...parcels.values()].some((p) => p.x == xMe && p.y == yMe)
                 if (isOverParcel) {
                     await client.pickup()
@@ -236,6 +240,7 @@ class BlindMove extends Plan {
                 if (isOverDelivery) {
                     await client.putdown()
                 }
+                */
 
                 if (res === false) {
                     if (attempts === maxAttempts) {
@@ -250,37 +255,6 @@ class BlindMove extends Plan {
                     i++
                     attempts = 0
                 }
-
-                /*  NOTE: removed this part because now we use the result of client.move to check if the movement was successful
-                xMe = Math.round(me.x)
-                yMe = Math.round(me.y)
-
-                const isOverParcel = [...parcels.values()].some((p) => p.x == xMe && p.y == yMe)
-                if (isOverParcel) {
-                    await client.pickup()
-                }
-
-                const isOverDelivery = deliveries.some((d) => d.x == xMe && d.y == yMe)
-                if (isOverDelivery) {
-                    await client.putdown()
-                }
-                */
-
-                /*
-                if (xMe !== coord.x && yMe !== coord.y) {
-                    if (attempts === maxAttempts) {
-                        throw new Error(
-                            `Impossible to reach the end of the path, it should be (${coord.x}, ${coord.y}) but it is (${xMe},${yMe})`,
-                        )
-                    }
-
-                    attempts++
-                    logger.info(`retry ${attempts} / ${maxAttempts}`)
-                } else {
-                    i++
-                    attempts = 0
-                }
-                */
             }
         } catch (error) {
             logger.error(`Error in go_to: ${error}`)

@@ -7,11 +7,12 @@ import { logger } from "./logger.js"
 import * as pf from "@cetfox24/pathfinding-js"
 
 export const client = new DeliverooApi(
-    "http://localhost:8080",
-    //"https://deliveroojs1.onrender.com",
+    //"http://localhost:8080",
+    "https://deliveroojs.onrender.com",
     //"https://deliveroojs2.onrender.com",
     //"https://deliveroojs3.onrender.com",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNiMWY4OWM1NGYxIiwibmFtZSI6IlZJU0EgQ0FTSCBBUFAgUkFDSU5HIEJVTExTIiwiaWF0IjoxNzE1MjkwODc2fQ.6vWN1r-dra_rb1HeXnwCS9dH42HNQETMHaEQtXAV0cw",
+    //"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNiMWY4OWM1NGYxIiwibmFtZSI6IlZJU0EgQ0FTSCBBUFAgUkFDSU5HIEJVTExTIiwiaWF0IjoxNzE1MjkwODc2fQ.6vWN1r-dra_rb1HeXnwCS9dH42HNQETMHaEQtXAV0cw",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjNiYzAwZWQ3M2E2IiwibmFtZSI6Ik1BWCBWRVJTVEFQUEVOIiwiaWF0IjoxNzE1NjMwMjg4fQ.kTR9rmEUFFieYAD1cZMAVXMcarRK4UA6j_8CgtPlN2w",
 )
 /*
 TODO:
@@ -71,17 +72,21 @@ client.onYou(({ id, name, x, y, score }) => {
 // @type {Map<string, Rival>}
 export const rivals = new Map()
 client.onAgentsSensing(async (_rivals) => {
+    for (const delivery of deliveries) {
+        delivery.isBlocked = false
+    }
+
     for (const p of _rivals) {
         p.x = Math.round(p.x)
         p.y = Math.round(p.y)
         rivals.set(p.id, p)
+        const d = deliveries.find((d) => {
+            return d.x == p.x && d.y == p.y
+        })
+        if (d) {
+            d.isBlocked = true
+        }
     }
-
-    /* for (const r of rivals.values()) {
-        const dist = distance({ x: Math.round(me.x), y: Math.round(me.y) }, r)
-        const isNear = dist <= agentObservationDistance
-        pathFindingGrid.setSolid(r.x, r.y,  isNear)
-    } */
 })
 
 client.onMap((width, height) => {
@@ -105,6 +110,7 @@ export const parcels = new Map()
 /** @type {Array<Parcel>} */
 var myParcels = []
 client.onParcelsSensing(async (perceived_parcels) => {
+    parcels.clear()
     myParcels = []
 
     for (const p of perceived_parcels) {
@@ -184,14 +190,12 @@ function agentLoop() {
 
     deliveries.sort((a, b) => a.path.length - b.path.length)
     const validDeliveries = deliveries.filter((d) => {
+        if (d.isBlocked == true) {
+            return false
+        }
+
         const path = d.path
         if (path.length == 0) return false
-
-        for (const p of parcels.values()) {
-            if (Math.round(p.x) == d.x && Math.round(p.y) == d.y) {
-                return false
-            }
-        }
 
         return true
     })
@@ -308,7 +312,6 @@ function agentLoop() {
 
         myAgent.push(goRandomOption)
     }
-
     return new Promise((res) => setImmediate(() => res()))
 }
 
@@ -338,7 +341,6 @@ function calculatePaths() {
         deliveries[i] = delivery
     }
 }
-
 /*
 client.onAgentsSensing(agentLoop)
 client.onParcelsSensing(agentLoop)
