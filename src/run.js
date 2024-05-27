@@ -3,25 +3,14 @@ import { distance, sleep, getNearestDelivery, getOptionScore, getExecutionTime }
 import "./types.js"
 import { myAgent } from "./agent.js"
 import { logger } from "./logger.js"
+import { default as argsParser } from "args-parser"
 
 import * as pf from "@cetfox24/pathfinding-js"
 
-export const client = new DeliverooApi(
-    //"http://localhost:8080",
-    "https://deliveroojs.onrender.com",
-    //"https://deliveroojs2.onrender.com",
-    //"https://deliveroojs3.onrender.com",
-    //"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImNiMWY4OWM1NGYxIiwibmFtZSI6IlZJU0EgQ0FTSCBBUFAgUkFDSU5HIEJVTExTIiwiaWF0IjoxNzE1MjkwODc2fQ.6vWN1r-dra_rb1HeXnwCS9dH42HNQETMHaEQtXAV0cw",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjNiYzAwZWQ3M2E2IiwibmFtZSI6Ik1BWCBWRVJTVEFQUEVOIiwiaWF0IjoxNzE1NjMwMjg4fQ.kTR9rmEUFFieYAD1cZMAVXMcarRK4UA6j_8CgtPlN2w",
-)
-/*
-TODO:
-1. cambia azione quando si blocca per avversario o mappa ostile
-2. [RESOLVED] migliorare parte stop quando vede un percorso migliore durante un random / pick up / put down
-3. [RESOLVED] possibilità di accelerarlo tenendo il percorso A* precedentemente calcolato
-*/
+const args = argsParser(process.argv)
+export const client = new DeliverooApi()
 
-/** @type {pf.AStar} */
+/** @type {} */
 const finder = new pf.AStar()
 
 export var speedParcel = 0
@@ -271,7 +260,7 @@ function agentLoop() {
                 bestOptionPutDown = 0
             } else {
                 if (speedParcel == 0) {
-                    potentialScorePutDown = 1000 - 5 - bestOptionPutDown.args.path.length //distance(me, bestOptionPutDown)
+                    potentialScorePutDown = 1000 - 0 - bestOptionPutDown.args.path.length //distance(me, bestOptionPutDown)
                 } else {
                     potentialScorePutDown = Math.max(
                         0,
