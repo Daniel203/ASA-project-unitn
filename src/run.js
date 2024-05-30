@@ -342,3 +342,46 @@ const run = async () => {
 }
 
 run()
+
+///////////////////// thest
+//
+
+function getPddlObjects() {
+    var pddlGrid = ""
+    for (let y = 0; y < pathFindingGrid.height; y++) {
+        for (let x = 0; x < pathFindingGrid.width; x++) {
+            pddlGrid += `y${y}_x${x} - position `
+        }
+    }
+
+    return pddlGrid
+}
+
+function getPddlInit() {
+    var pddlString = ""
+
+    for (let y = 0; y < pathFindingGrid.height; y++) {
+        for (let x = 0; x < pathFindingGrid.width; x++) {
+            // TODO: don't add the blocks where the robottino can't walk
+            if (y > 0) {
+                pddlString += `(can-move y${y}_x${x} y${y - 1}_x${x}) `
+            }
+            if (x > 0) {
+                pddlString += `(can-move y${y}_x${x} y${y}_x${x - 1}) `
+            }
+            if (y < pathFindingGrid.height - 1) {
+                pddlString += `(can-move y${y}_x${x} y${y + 1}_x${x}) `
+            }
+            if (x < pathFindingGrid.width - 1) {
+                pddlString += `(can-move y${y}_x${x} y${y}_x${x + 1}) `
+            }
+        }
+    }
+
+    for (const delivery of deliveries) {
+        pddlString += `(delivery y${delivery.y}-x${delivery.x})`
+    }
+
+    // TODO: add parcels as (at parcel_id yY-xX)
+    return pddlString
+}

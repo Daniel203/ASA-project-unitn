@@ -10,7 +10,7 @@ const transports = pino.transport({
             target: "pino-pretty",
             options: { destination: `logs/${todayFormatted}.log`, mkdir: true },
         },*/
-        { level: "info", target: "pino-pretty", options: { include: "level,time" } },
+        // { level: "info", target: "pino-pretty", options: { include: "level,time" } },
     ],
 })
 
