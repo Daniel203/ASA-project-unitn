@@ -343,45 +343,62 @@ const run = async () => {
 
 run()
 
-///////////////////// thest
-//
-
-function getPddlObjects() {
+export function getPddlObjects() {
     var pddlGrid = ""
     for (let y = 0; y < pathFindingGrid.height; y++) {
         for (let x = 0; x < pathFindingGrid.width; x++) {
-            pddlGrid += `y${y}_x${x} - position `
+            if (!pathFindingGrid.get(x, y).solid) {
+                pddlGrid += `y${y}_x${x} - position `
+            }
         }
     }
+    /*
+    for (const parcel of parcels) {
+        pddlGrid += `${parcel.id} - parcel `
+    }
+    */
 
+    pddlGrid += `${me.id} - agent `
     return pddlGrid
 }
 
-function getPddlInit() {
+export function getPddlInit() {
     var pddlString = ""
 
     for (let y = 0; y < pathFindingGrid.height; y++) {
         for (let x = 0; x < pathFindingGrid.width; x++) {
-            // TODO: don't add the blocks where the robottino can't walk
-            if (y > 0) {
-                pddlString += `(can-move y${y}_x${x} y${y - 1}_x${x}) `
-            }
-            if (x > 0) {
-                pddlString += `(can-move y${y}_x${x} y${y}_x${x - 1}) `
-            }
-            if (y < pathFindingGrid.height - 1) {
-                pddlString += `(can-move y${y}_x${x} y${y + 1}_x${x}) `
-            }
-            if (x < pathFindingGrid.width - 1) {
-                pddlString += `(can-move y${y}_x${x} y${y}_x${x + 1}) `
+            if (!pathFindingGrid.get(x, y).solid) {
+                if (y > 0 && !pathFindingGrid.get(x, y - 1).solid) {
+                    pddlString += `(can-move y${y}_x${x} y${y - 1}_x${x}) `
+                }
+                if (x > 0 && !pathFindingGrid.get(x - 1, y).solid) {
+                    pddlString += `(can-move y${y}_x${x} y${y}_x${x - 1}) `
+                }
+                if (y < pathFindingGrid.height - 1 && !pathFindingGrid.get(x, y + 1).solid) {
+                    pddlString += `(can-move y${y}_x${x} y${y + 1}_x${x}) `
+                }
+                if (x < pathFindingGrid.width - 1 && !pathFindingGrid.get(x + 1, y).solid) {
+                    pddlString += `(can-move y${y}_x${x} y${y}_x${x + 1}) `
+                }
             }
         }
     }
 
     for (const delivery of deliveries) {
-        pddlString += `(delivery y${delivery.y}-x${delivery.x})`
+        pddlString += `(delivery y${delivery.y}_x${delivery.x}) `
     }
 
-    // TODO: add parcels as (at parcel_id yY-xX)
+    /*
+    for (const parcel of parcels) {
+        if (parcel) {
+            pddlString += `(at ${parcel.id} y${parcel.y}-x${parcel.x}) `
+        }
+    }
+    */
+
+    pddlString += `(blocked y${Math.round(me.y)}_x${Math.round(me.x)}) `
+
+    pddlString += `(at ${me.id} y${Math.round(me.y)}_x${Math.round(me.x)}) `
+
     return pddlString
 }

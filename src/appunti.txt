@@ -1,0 +1,20 @@
+VCARB1 > Siamo in goto
+
+VCARB1 > ;; problem file: problem-go_to-34.pddl
+(define (problem default)
+    (:domain default)
+    (:objects y0_x2 - position y1_x0 - position y1_x1 - position y1_x2 - position y2_x0 - position y2_x2 - position y3_x0 - position y3_x2 - position y4_x0 - position y4_x2 - position y5_x0 - position y5_x1 - position y5_x2 - position )
+    (:init (can-move y0_x2 y1_x2) (can-move y1_x0 y2_x0) (can-move y1_x0 y1_x1) (can-move y1_x1 y1_x0) (can-move y1_x1 y1_x2) (can-move y1_x2 y0_x2) (can-move y1_x2 y1_x1) (can-move y1_x2 y2_x2) (can-move y2_x0 y1_x0) (can-move y2_x0 y3_x0) (can-move y2_x2 y1_x2) (can-move y2_x2 y3_x2) (can-move y3_x0 y2_x0) (can-move y3_x0 y4_x0) (can-move y3_x2 y2_x2) (can-move y3_x2 y4_x2) (can-move y4_x0 y3_x0) (can-move y4_x0 y5_x0) (can-move y4_x2 y3_x2) (can-move y4_x2 y5_x2) (can-move y5_x0 y4_x0) (can-move y5_x0 y5_x1) (can-move y5_x1 y5_x0) (can-move y5_x1 y5_x2) (can-move y5_x2 y4_x2) (can-move y5_x2 y5_x1) (delivery y3-x0)(delivery y0-x2)(blocked y4_x0) )
+    (:goal ((and (at 25287256213 y3-x2))))
+)
+
+
+VCARB2 > Siamo in goto
+
+VCARB2 > ;; problem file: problem-go_to-34.pddl
+(define (problem default)
+    (:domain default)
+    (:objects y0_x2 - position y1_x0 - position y1_x1 - position y1_x2 - position y2_x0 - position y2_x2 - position y3_x0 - position y3_x2 - position y4_x0 - position y4_x2 - position y5_x0 - position y5_x1 - position y5_x2 - position )
+    (:init (can-move y0_x2 y1_x2) (can-move y1_x0 y2_x0) (can-move y1_x0 y1_x1) (can-move y1_x1 y1_x0) (can-move y1_x1 y1_x2) (can-move y1_x2 y0_x2) (can-move y1_x2 y1_x1) (can-move y1_x2 y2_x2) (can-move y2_x0 y1_x0) (can-move y2_x0 y3_x0) (can-move y2_x2 y1_x2) (can-move y2_x2 y3_x2) (can-move y3_x0 y2_x0) (can-move y3_x0 y4_x0) (can-move y3_x2 y2_x2) (can-move y3_x2 y4_x2) (can-move y4_x0 y3_x0) (can-move y4_x0 y5_x0) (can-move y4_x2 y3_x2) (can-move y4_x2 y5_x2) (can-move y5_x0 y4_x0) (can-move y5_x0 y5_x1) (can-move y5_x1 y5_x0) (can-move y5_x1 y5_x2) (can-move y5_x2 y4_x2) (can-move y5_x2 y5_x1) (delivery y0-x2)(delivery y3-x0)(blocked y3_x2) )
+    (:goal ((and (at 2872562132d y3-x2))))
+)

@@ -1,8 +1,8 @@
 import fetch from "node-fetch"
 import { sleep } from "../utils.js"
 
-// const BASE_URL = "https://solver.planning.domains:5001"
-const BASE_URL = "http://localhost:5001"
+const BASE_URL = "https://solver.planning.domains:5001"
+// const BASE_URL = "http://localhost:5001"
 const FETCH_URL = BASE_URL + "/package/lama-first/solve"
 
 /**

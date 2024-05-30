@@ -1,7 +1,10 @@
-import { client, me, grid, speed, pathFindingGrid, rivals, parcels, deliveries } from "./run.js"
+import { client, me, grid, speed, pathFindingGrid, getPddlObjects, getPddlInit,rivals, parcels, deliveries } from "./run.js"
 import { Intention } from "./intention.js"
 import { logger } from "./logger.js"
 import { sleep } from "./utils.js"
+import PddlProblem from "./planner/PddlProblem.js"
+import {getPlan} from "./planner/pddl_planner.js"
+import PddlExecutor from "./planner/PddlExecutor.js"
 
 import * as pf from "@cetfox24/pathfinding-js"
 
@@ -189,74 +192,21 @@ class BlindMove extends Plan {
 
     async executeWithSignal({ x, y, args }, signal) {
         try {
-            signal.throwIfAborted()
-            // const maxAttempts = (1000 / speed) * 5
-            const maxAttempts = 10
-            var attempts = 0
-
-            var path = []
-
-            if (path[0]?.x == Math.round(me.x) && path[0]?.y == Math.round(me.y)) {
-                path = args.path
-            } else {
-                path = finder.findPath(
-                    { x: Math.round(me.x), y: Math.round(me.y) },
-                    { x, y },
-                    pathFindingGrid,
-                ).path
-            }
-
-            signal.throwIfAborted()
-            var i = 0
-            while (i < path.length) {
-                signal.throwIfAborted()
-                const coord = path[i]
-                var xMe = Math.round(me.x)
-                var yMe = Math.round(me.y)
-
-                /** @type {{x:number,y:number}|false} */
-                var res = undefined
-
-                if (xMe == coord.x - 1) {
-                    res = await client.move("right")
-                } else if (xMe == coord.x + 1) {
-                    res = await client.move("left")
-                } else if (yMe == coord.y - 1) {
-                    res = await client.move("up")
-                } else if (yMe == coord.y + 1) {
-                    res = await client.move("down")
-                }
-
-                xMe = Math.round(me.x)
-                yMe = Math.round(me.y)
-
-                /*
-                const isOverParcel = [...parcels.values()].some((p) => p.x == xMe && p.y == yMe)
-                if (isOverParcel) {
-                    await client.pickup()
-                }
-
-                const isOverDelivery = deliveries.some((d) => d.x == xMe && d.y == yMe)
-                if (isOverDelivery) {
-                    await client.putdown()
-                }
-                */
-
-                if (res === false) {
-                    if (attempts === maxAttempts) {
-                        throw new Error(
-                            `Impossible to reach the end of the path, it should be (${coord.x}, ${coord.y}) but it is (${xMe},${yMe})`,
-                        )
-                    }
-
-                    attempts++
-                    logger.info(`retry ${attempts} / ${maxAttempts}`)
-                } else {
-                    i++
-                    attempts = 0
-                }
-            }
-        } catch (error) {
+            console.log("Siamo in goto")
+            const goal = `and (at ${me.id} y${Math.round(y)}_x${Math.round(x)})`
+            const pddlProblem = new PddlProblem(
+                'go_to',
+                getPddlObjects(),
+                getPddlInit(),
+                goal
+            )
+            
+            const plan = await getPlan(pddlProblem.toPddlString())
+            console.log(plan)
+            const pddlExecutor = new PddlExecutor({})
+            pddlExecutor.exec(plan)
+            
+         } catch (error) {
             logger.error(`Error in go_to: ${error}`)
             this.stop()
             throw error
