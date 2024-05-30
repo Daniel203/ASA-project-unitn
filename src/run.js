@@ -1,13 +1,11 @@
 import { DeliverooApi } from "@unitn-asa/deliveroo-js-client"
-import { distance, sleep, getNearestDelivery, getOptionScore, getExecutionTime } from "./utils.js"
+import { sleep, getOptionScore } from "./utils.js"
 import "./types.js"
 import { myAgent } from "./agent.js"
 import { logger } from "./logger.js"
-import { default as argsParser } from "args-parser"
 
 import * as pf from "@cetfox24/pathfinding-js"
 
-const args = argsParser(process.argv)
 export const client = new DeliverooApi()
 
 /** @type {} */

@@ -55,3 +55,10 @@
  * @property {number} y
  * @property {number} score
  */
+
+/**
+ * @typedef {object} PddlPlanStep
+ * @property {boolean} parallel
+ * @property {string} action
+ * @property {string[]} args
+ */

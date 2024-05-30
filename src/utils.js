@@ -1,5 +1,6 @@
 import "./types.js"
 import { speedParcel, speed, maxParcels } from "./run.js"
+import fs from "fs"
 
 /**
  * @param {Point} point1
@@ -100,4 +101,17 @@ export async function getExecutionTime(f, ...args) {
     var end = new Date().getTime()
     var dur = end - start
     return dur
+}
+
+/**
+ * @param {string} path
+ * @returns {Promise<string>} the content of the file at path
+ */
+export function readFile(path) {
+    return new Promise((res, rej) => {
+        fs.readFile(path, "utf8", (err, data) => {
+            if (err) rej(err)
+            else res(data)
+        })
+    })
 }
