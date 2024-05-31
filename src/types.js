@@ -26,7 +26,9 @@
 /**
  * @typedef {Object} OptionMoreArg
  * @property {number | undefined} maxSteps - the maximum number of steps to reach the target before the target value is 0
- * @property {Array<Point>} path
+ * @property {Array<Point> | undefined} path
+ * @property {String | undefined} pddlGoal
+ * @property {String | undefined} parelId
  */
 
 /**

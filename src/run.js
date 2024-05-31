@@ -164,6 +164,7 @@ function agentLoop() {
                         maxSteps:
                             speedParcel != 0 ? (parcelValueNow * speedParcel * 1000) / speed : 0,
                         path: parcel.path,
+                        parcelId: parcel.id,
                     },
                 })
             } else {
@@ -352,11 +353,10 @@ export function getPddlObjects() {
             }
         }
     }
-    /*
-    for (const parcel of parcels) {
+
+    for (const parcel of parcels.values()) {
         pddlGrid += `${parcel.id} - parcel `
     }
-    */
 
     pddlGrid += `${me.id} - agent `
     return pddlGrid
@@ -388,13 +388,11 @@ export function getPddlInit() {
         pddlString += `(delivery y${delivery.y}_x${delivery.x}) `
     }
 
-    /*
-    for (const parcel of parcels) {
+    for (const parcel of parcels.values()) {
         if (parcel) {
             pddlString += `(at ${parcel.id} y${parcel.y}-x${parcel.x}) `
         }
     }
-    */
 
     pddlString += `(blocked y${Math.round(me.y)}_x${Math.round(me.x)}) `
 
