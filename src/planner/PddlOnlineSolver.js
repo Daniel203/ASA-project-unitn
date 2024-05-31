@@ -79,6 +79,7 @@ async function fetchPlan(fetchPlanUrl) {
                 throw new Error(`Error at ${fetchPlanUrl}: ${fetchResponse.statusText}`)
             }
 
+            console.log(fetchResponse)
             response = await fetchResponse.json()
 
             if (response.status === "error") {
@@ -94,6 +95,7 @@ async function fetchPlan(fetchPlanUrl) {
             throw new Error("Timeout while waiting for the detailed plan")
         }
 
+        console.log(response)
         return response.plans[0]
     } catch (error) {
         console.error(`Failed to fetch detailed plan: ${error.message}`)

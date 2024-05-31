@@ -198,7 +198,7 @@ function agentLoop() {
             y: bestDelivery.y,
             id: `D(${bestDelivery.x}, ${bestDelivery.y})`,
             value: 0,
-            args: { path: bestDelivery.path },
+            args: { path: bestDelivery.path, parcelsToDeliver: myParcels.map(p => p.id)},
         }
     }
 

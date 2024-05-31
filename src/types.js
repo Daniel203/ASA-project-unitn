@@ -28,7 +28,8 @@
  * @property {number | undefined} maxSteps - the maximum number of steps to reach the target before the target value is 0
  * @property {Array<Point> | undefined} path
  * @property {String | undefined} pddlGoal
- * @property {String | undefined} parelId
+ * @property {String | undefined} parcelId
+ * @property {String[] | undefined} parcelsToDeliver
  */
 
 /**
