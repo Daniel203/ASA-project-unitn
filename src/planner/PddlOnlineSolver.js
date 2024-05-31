@@ -1,8 +1,8 @@
 import fetch from "node-fetch"
 import { sleep } from "../utils.js"
 
-const BASE_URL = "https://solver.planning.domains:5001"
-// const BASE_URL = "http://localhost:5001"
+//const BASE_URL = "https://solver.planning.domains:5001"
+const BASE_URL = "http://192.168.1.66:5001"
 const FETCH_URL = BASE_URL + "/package/lama-first/solve"
 
 /**
@@ -79,7 +79,6 @@ async function fetchPlan(fetchPlanUrl) {
                 throw new Error(`Error at ${fetchPlanUrl}: ${fetchResponse.statusText}`)
             }
 
-            console.log(fetchResponse)
             response = await fetchResponse.json()
 
             if (response.status === "error") {
@@ -87,7 +86,7 @@ async function fetchPlan(fetchPlanUrl) {
                 throw new Error(`Error at ${fetchPlanUrl}: ${errorMessage}`)
             }
 
-            await sleep(500)
+            await sleep(300)
             attempts++
         } while (response.status === "PENDING" && attempts < 10)
 
@@ -95,7 +94,6 @@ async function fetchPlan(fetchPlanUrl) {
             throw new Error("Timeout while waiting for the detailed plan")
         }
 
-        console.log(response)
         return response.plans[0]
     } catch (error) {
         console.error(`Failed to fetch detailed plan: ${error.message}`)

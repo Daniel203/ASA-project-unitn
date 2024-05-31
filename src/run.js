@@ -390,7 +390,7 @@ export function getPddlInit() {
 
     for (const parcel of parcels.values()) {
         if (parcel) {
-            pddlString += `(at ${parcel.id} y${parcel.y}-x${parcel.x}) `
+            pddlString += `(at ${parcel.id} y${parcel.y}_x${parcel.x}) `
         }
     }
 

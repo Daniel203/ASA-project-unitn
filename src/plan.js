@@ -210,11 +210,7 @@ class PddlPlan extends Plan {
                 pddlGoal,
             )
 
-            //console.log(pddlProblem.toPddlString())
-
             const pddlPlan = await getPlan(pddlProblem.toPddlString())
-            // console.log("pddlPlan in plan")
-            // console.log(pddlPlan)
             const pddlExecutor = new PddlExecutor(pddlPlan)
             const intentions = pddlExecutor.getIntentionsList()
 
