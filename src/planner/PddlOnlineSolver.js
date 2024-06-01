@@ -1,8 +1,9 @@
 import fetch from "node-fetch"
 import { sleep } from "../utils.js"
 
-//const BASE_URL = "https://solver.planning.domains:5001"
+// const BASE_URL = "https://solver.planning.domains:5001"
 const BASE_URL = "http://192.168.1.66:5001"
+// const BASE_URL = "http://localhost:5001"
 const FETCH_URL = BASE_URL + "/package/lama-first/solve"
 
 /**
@@ -58,47 +59,57 @@ async function getPlanFetchUrl(pddlDomain, pddlProblem) {
 /**
  * Fetch the plan until it's ready or times out.
  * @param {String} fetchPlanUrl
+ * @param {number} maxAttempts - Maximum number of retry attempts
+ * @param {number} baseDelay - Base delay in milliseconds for exponential backoff
  * @returns {Promise<Object>}
  * @throws Will throw an error if the fetch fails or times out.
  */
-async function fetchPlan(fetchPlanUrl) {
+async function fetchPlan(fetchPlanUrl, maxAttempts = 3, baseDelay = 100) {
     let attempts = 0
     let response
 
-    try {
-        do {
-            const fetchResponse = await fetch(fetchPlanUrl, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ adaptor: "planning_editor_adaptor" }),
-            })
+    const fetchWithRetry = async () => {
+        const fetchResponse = await fetch(fetchPlanUrl, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ adaptor: "planning_editor_adaptor" }),
+        })
 
-            if (!fetchResponse.ok) {
-                throw new Error(`Error at ${fetchPlanUrl}: ${fetchResponse.statusText}`)
-            }
-
-            response = await fetchResponse.json()
-
-            if (response.status === "error") {
-                const errorMessage = response.error || "Unknown error"
-                throw new Error(`Error at ${fetchPlanUrl}: ${errorMessage}`)
-            }
-
-            await sleep(300)
-            attempts++
-        } while (response.status === "PENDING" && attempts < 10)
-
-        if (attempts === 10) {
-            throw new Error("Timeout while waiting for the detailed plan")
+        if (!fetchResponse.ok) {
+            throw new Error(`Error at ${fetchPlanUrl}: ${fetchResponse.statusText}`)
         }
 
-        return response.plans[0]
-    } catch (error) {
-        console.error(`Failed to fetch detailed plan: ${error.message}`)
-        throw error
+        response = await fetchResponse.json()
+
+        if (response.status === "error") {
+            const errorMessage = response.result.error || "Unknown error"
+            throw new Error(`Error at ${fetchPlanUrl}: ${errorMessage}`)
+        }
+
+        return response
     }
+
+    while (attempts < maxAttempts) {
+        attempts++
+        await sleep(baseDelay)
+
+        try {
+            response = await fetchWithRetry()
+
+            if (response.status !== "PENDING") {
+                return response.plans[0]
+            }
+        } catch (error) {
+            console.error(`Attempt ${attempts} failed: ${error.message}`)
+            if (attempts === maxAttempts) {
+                throw new Error("Timeout while waiting for the detailed plan")
+            }
+        }
+    }
+
+    throw new Error("Failed to fetch detailed plan after maximum attempts")
 }
 
 /**
