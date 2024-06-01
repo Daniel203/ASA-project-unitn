@@ -2,16 +2,16 @@
 
 import { spawn } from "child_process"
 
-const vcarb_1 = {
-    id: "e083aa6f59e",
-    name: "VCARB1",
-    token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjI1Mjg3MjU2MjEzIiwibmFtZSI6IlZDQVJCMSIsImlhdCI6MTcxNjgxODQyMH0.ZPtFcrJ-9fejEi4afzBUL1jmx_8oUDoarLirbEaMQsI",
+export const vcarb_1 = {
+    id: "62a5ecddb43",
+    name: "VCARB_1",
+    token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjYyYTVlY2RkYjQzIiwibmFtZSI6IlZDQVJCXzEiLCJpYXQiOjE3MTcyMzUzNjB9.QiFgHrVT00z6inSpkbR_AKbKf7Rlx-iRHmgc0r22sTg",
 }
 
-const vcarb_2 = {
-    id: "1d74b61b883",
-    name: "VCARB2",
-    token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjI4NzI1NjIxMzJkIiwibmFtZSI6IlZDQVJCMiIsImlhdCI6MTcxNjgxOTk1OX0.Xg-_iH2ndj2EVl55t8P9JpsL1ev4F0yJlGVdZm3J4aM",
+export const vcarb_2 = {
+    id: "2a5ecddb436",
+    name: "VCARB_2",
+    token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjJhNWVjZGRiNDM2IiwibmFtZSI6IlZDQVJCXzIiLCJpYXQiOjE3MTcyMzUzOTF9.3_0rlHo5gxZ0485dICw5kHJKbUumwL9D_Lbfuj1jtqY",
 }
 
 spawnProcesses(vcarb_1, vcarb_2)

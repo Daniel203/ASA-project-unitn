@@ -9,10 +9,11 @@ import {
     rivals,
     parcels,
     deliveries,
+    spawningPoints,
 } from "./run.js"
 import { Intention } from "./intention.js"
 import { logger } from "./logger.js"
-import { sleep } from "./utils.js"
+import { sleep, getExecutionTime } from "./utils.js"
 import PddlProblem from "./planner/PddlProblem.js"
 import { getPlan } from "./planner/pddl_planner.js"
 import PddlExecutor from "./planner/pddl_executor.js"
@@ -162,9 +163,17 @@ class GoRandom extends Plan {
             /** @type {Array<Point>} */
             var path = []
 
-            while (!xRand || !yRand || grid[xRand][yRand] === 0 || path.length === 0) {
-                xRand = Math.floor(Math.random() * grid.length)
-                yRand = Math.floor(Math.random() * grid[0].length)
+            while (
+                // xRand == undefined ||
+                // yRand == undefined ||
+                // grid[xRand][yRand] === 0 ||
+                path.length === 0
+            ) {
+                // Pick a random value from the list
+                const point = spawningPoints[Math.floor(Math.random() * spawningPoints.length)]
+
+                xRand = point.x
+                yRand = point.y
 
                 path = finder.findPath(
                     { x: Math.round(me.x), y: Math.round(me.y) },
@@ -173,9 +182,12 @@ class GoRandom extends Plan {
                 ).path
             }
 
+            // console.log(`Random point: (${xRand}, ${yRand})`)
+
             // await this.subIntention("go_to", { x: xRand, y: yRand, action: "go_to" })
 
-            const pddlGoal = `and (at ${me.id} y${yRand}_x${yRand})`
+            const pddlGoal = `and (at ${me.id} y${yRand}_x${xRand})`
+            //console.log("RANDOM: ", pddlGoal)
             await this.subIntention("pddl_plan", { action: "pddl_plan", args: { pddlGoal } })
         } catch (error) {
             logger.error(`Error in go_random: ${error}`)

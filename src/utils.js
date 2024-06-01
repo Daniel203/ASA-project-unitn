@@ -71,7 +71,7 @@ export function getOptionScore(parcel, dist, rivals) {
             score = distance(parcel, nearestRival)
         }
 
-        score = -dist * distanceWeight + parcel.value * valueWeight //+ score * rivalsWeight
+        score = 1000-dist//-dist * distanceWeight + parcel.value * valueWeight //+ score * rivalsWeight
     }
 
     return score

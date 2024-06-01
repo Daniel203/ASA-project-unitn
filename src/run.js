@@ -45,6 +45,9 @@ export const me = {}
  */
 export const grid = []
 
+/** @type {Point[]} */
+export const spawningPoints = []
+
 /** @type {pf.Grid | undefined} */
 export var pathFindingGrid = undefined
 
@@ -112,12 +115,16 @@ client.onParcelsSensing(async (perceived_parcels) => {
 
 /** @type {Array<Delivery>} */
 export const deliveries = []
-client.onTile(async (x, y, delivery) => {
+client.onTile(async (x, y, delivery, parcelSpawner) => {
     if (grid.length == 0) await sleep(1000)
 
     if (delivery) {
         deliveries.push({ x: x, y: y })
         grid[x][y] = 2
+    }
+
+    if (parcelSpawner){
+        spawningPoints.push({ x: x, y: y})
     }
 })
 

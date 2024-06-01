@@ -1,5 +1,6 @@
 import fetch from "node-fetch"
 import { sleep } from "../utils.js"
+import {logger} from "../logger.js"
 
 // const BASE_URL = "https://solver.planning.domains:5001"
 const BASE_URL = "http://192.168.1.66:5001"
@@ -51,7 +52,7 @@ async function getPlanFetchUrl(pddlDomain, pddlProblem) {
 
         return result.result
     } catch (error) {
-        console.error(`Failed to fetch initial plan: ${error.message}`)
+        logger.error(`Failed to fetch initial plan: ${error.message}`)
         throw error
     }
 }
@@ -64,7 +65,7 @@ async function getPlanFetchUrl(pddlDomain, pddlProblem) {
  * @returns {Promise<Object>}
  * @throws Will throw an error if the fetch fails or times out.
  */
-async function fetchPlan(fetchPlanUrl, maxAttempts = 3, baseDelay = 100) {
+async function fetchPlan(fetchPlanUrl, maxAttempts = 10, baseDelay = 200) {
     let attempts = 0
     let response
 
@@ -102,7 +103,7 @@ async function fetchPlan(fetchPlanUrl, maxAttempts = 3, baseDelay = 100) {
                 return response.plans[0]
             }
         } catch (error) {
-            console.error(`Attempt ${attempts} failed: ${error.message}`)
+            logger.error(`Attempt ${attempts} failed: ${error.message}`)
             if (attempts === maxAttempts) {
                 throw new Error("Timeout while waiting for the detailed plan")
             }
@@ -158,7 +159,7 @@ export default async function onlineSolver(pddlDomain, pddlProblem) {
 
         return processPlan(detailedPlan)
     } catch (error) {
-        console.error(`Error in onlineSolver: ${error.message}`)
+        logger.error(`Error in onlineSolver: ${error.message}`)
         return []
     }
 }
