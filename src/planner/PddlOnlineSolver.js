@@ -1,10 +1,9 @@
 import fetch from "node-fetch"
 import { sleep } from "../utils.js"
 import {logger} from "../logger.js"
+import config from "../../config.js"
 
-// const BASE_URL = "https://solver.planning.domains:5001"
-const BASE_URL = "http://192.168.1.66:5001"
-// const BASE_URL = "http://localhost:5001"
+const BASE_URL = config.pddlSolverURL
 const FETCH_URL = BASE_URL + "/package/lama-first/solve"
 
 /**

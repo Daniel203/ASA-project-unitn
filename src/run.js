@@ -3,6 +3,7 @@ import { sleep, getOptionScore } from "./utils.js"
 import "./types.js"
 import { myAgent } from "./agent.js"
 import { logger } from "./logger.js"
+import config from "../config.js"
 
 import * as pf from "@cetfox24/pathfinding-js"
 
@@ -16,6 +17,8 @@ export var speed = 0
 export var maxParcels = 0
 export var distanceVisibility = 0
 export var agentObservationDistance
+
+//const IS_CAPO = client.id === vcarb_1.id
 
 client.onConfig((x) => {
     distanceVisibility = parseInt(x.PARCELS_OBSERVATION_DISTANCE)
@@ -123,8 +126,8 @@ client.onTile(async (x, y, delivery, parcelSpawner) => {
         grid[x][y] = 2
     }
 
-    if (parcelSpawner){
-        spawningPoints.push({ x: x, y: y})
+    if (parcelSpawner) {
+        spawningPoints.push({ x: x, y: y })
     }
 })
 
@@ -138,7 +141,7 @@ client.onNotTile(async (x, y) => {
     pathFindingGrid.setSolid(x, y, true)
 })
 
-function agentLoop() {
+async function agentLoop() {
     if (pathFindingGrid == undefined) {
         return
     }
@@ -205,55 +208,95 @@ function agentLoop() {
             y: bestDelivery.y,
             id: `D(${bestDelivery.x}, ${bestDelivery.y})`,
             value: 0,
-            args: { path: bestDelivery.path, parcelsToDeliver: myParcels.map(p => p.id)},
+            args: { path: bestDelivery.path, parcelsToDeliver: myParcels.map((p) => p.id) },
         }
     }
 
     /** @type {Option} */
-    let bestOptionPickUp
-    let bestScorePickUp = 0
+    let bestOptionPickUp1
+    let bestOptionPickUp2
+    let bestScorePickUp1 = 0
+    let bestScorePickUp2 = 0
 
     for (const option of options) {
         if (option.action == "go_pick_up") {
             const dist = option.args.path.length
 
             let score = getOptionScore(option, dist, rivals)
-            if (score > bestScorePickUp) {
-                bestOptionPickUp = option
-                bestScorePickUp = score
+            if (score > bestScorePickUp2) {
+                bestOptionPickUp2 = option
+                bestScorePickUp2 = score
+                if (bestScorePickUp2 > bestScorePickUp1) {
+                    let bestScorePickUp = bestScorePickUp1
+                    let bestOptionPickUp = bestOptionPickUp1
+                    bestOptionPickUp1 = bestOptionPickUp2
+                    bestScorePickUp1 = bestScorePickUp2
+                    bestOptionPickUp2 = bestOptionPickUp
+                    bestScorePickUp2 = bestScorePickUp
+                }
             }
         }
     }
 
-    if (bestOptionPickUp || bestOptionPutDown) {
-        var potentialScorePickUp = 0
+    if (bestOptionPickUp1 || bestOptionPutDown) {
+        var potentialScorePickUp1 = 0
+        var potentialScorePickUp2 = 0
         var potentialScorePutDown = 0
 
         const actualScoreMyParcels =
             myParcels.length > 0 ? myParcels.map((p) => p.reward).reduce((a, b) => a + b) : 0
 
-        if (bestOptionPickUp) {
+        if (bestOptionPickUp1) {
             if (myParcels.length == maxParcels) {
-                potentialScorePickUp = 0
+                potentialScorePickUp1 = 0
             } else {
                 if (speedParcel == 0) {
-                    potentialScorePickUp = 1000 - bestOptionPickUp.args.path.length //distance(me, bestOptionPickUp)
+                    potentialScorePickUp1 = 1000 - bestOptionPickUp1.args.path.length //distance(me, bestOptionPickUp)
                 } else {
                     if (deliveries.length > 0) {
                         let deliveryNearby = [...deliveries.values()].sort(
                             (a, b) => a.path.length - b.path.length,
                         )[0]
 
-                        potentialScorePickUp = Math.max(
+                        potentialScorePickUp1 = Math.max(
                             0,
                             actualScoreMyParcels -
-                                bestOptionPickUp.args.path.length +
-                                bestOptionPickUp.value -
+                                bestOptionPickUp1.args.path.length +
+                                bestOptionPickUp1.value -
                                 deliveryNearby.path.length,
-                            //bestOptionPickUp.value / (distance(me, bestOptionPickUp) * minDistanceDel),
+                            //bestOptionPickUp1.value / (distance(me, bestOptionPickUp) * minDistanceDel),
                             /*actualScoreMyParcels -
                                 (distance(me, bestOptionPickUp) * speed) / 1000 +
-                                bestOptionPickUp.value -
+                                bestOptionPickUp1.value -
+                                (minDistanceDel * speedParcel) / 1000,*/
+                        )
+                    }
+                }
+            }
+        }
+
+        if (bestOptionPickUp2) {
+            if (myParcels.length == maxParcels) {
+                potentialScorePickUp2 = 0
+            } else {
+                if (speedParcel == 0) {
+                    potentialScorePickUp2 = 1000 - bestOptionPickUp2.args.path.length //distance(me, bestOptionPickUp)
+                } else {
+                    if (deliveries.length > 0) {
+                        let deliveryNearby = [...deliveries.values()].sort(
+                            (a, b) => a.path.length - b.path.length,
+                        )[0]
+
+                        potentialScorePickUp2 = Math.max(
+                            0,
+                            actualScoreMyParcels -
+                                bestOptionPickUp2.args.path.length +
+                                bestOptionPickUp2.value -
+                                deliveryNearby.path.length,
+                            //bestOptionPickUp1.value / (distance(me, bestOptionPickUp) * minDistanceDel),
+                            /*actualScoreMyParcels -
+                                (distance(me, bestOptionPickUp) * speed) / 1000 +
+                                bestOptionPickUp1.value -
                                 (minDistanceDel * speedParcel) / 1000,*/
                         )
                     }
@@ -277,16 +320,81 @@ function agentLoop() {
         }
 
         logger.info(`bestOptionPutDown: ${potentialScorePutDown}`)
-        logger.info(`bestOptionPickUp: ${potentialScorePickUp}`)
+        logger.info(`bestOptionPickUp1: ${potentialScorePickUp1}`)
+        logger.info(`bestOptionPickUp2: ${potentialScorePickUp2}`)
 
         if (
-            (potentialScorePickUp != 0 || potentialScorePutDown != 0) &&
-            (bestOptionPickUp || bestOptionPutDown)
+            (potentialScorePickUp1 != 0 || potentialScorePutDown != 0) &&
+            (bestOptionPickUp1 || bestOptionPutDown)
         ) {
-            let bestOption =
-                potentialScorePickUp > potentialScorePutDown ? bestOptionPickUp : bestOptionPutDown
+            let bestOption = []
+            if(potentialScorePickUp2 == 0){
+                if(potentialScorePickUp1 > potentialScorePutDown){
+                    bestOption.push(bestOptionPickUp1)
+                    bestOption.push(bestOptionPutDown)
+                }else{
+                    bestOption.push(bestOptionPutDown)
+                    bestOption.push(bestOptionPickUp1)
+                }
+            }else{
+                if(potentialScorePutDown < potentialScorePickUp2){
+                    bestOption.push(bestOptionPickUp1)
+                    bestOption.push(bestOptionPickUp2)
+                    bestOption.push(bestOptionPutDown)
+                }else if(potentialScorePutDown > potentialScorePickUp2 && potentialScorePutDown < potentialScorePickUp1){
+                    bestOption.push(bestOptionPickUp1)
+                    bestOption.push(bestOptionPutDown)
+                    bestOption.push(bestOptionPickUp2)
+                }else{
+                    bestOption.push(bestOptionPutDown)
+                    bestOption.push(bestOptionPickUp1)
+                    bestOption.push(bestOptionPickUp2)
+                }
+            }
+            
+            
+            if (client.id == config.vcarb_2.id && bestOption[0].action == "go_pick_up") {
+                const reply = await client.ask(config.vcarb_1.id, {
+                    action: "go_pick_up",
+                    parcelId: bestOption[0].id,
+                })
 
-            myAgent.push(bestOption)
+                if (reply) {
+                    console.log(`reply: ${reply}`)
+                    if (reply == "YES") {
+                        myAgent.push(bestOption[0])
+                    } else {
+                        if(bestOption.length > 1){
+                            myAgent.push(bestOption[1])
+                        }else{
+                            myAgent.push({ action: "go_random", id: "random" })
+                        }
+                    }
+                    //myAgent.push(bestOption)
+                }
+
+                // if I am allowed to pickup and parcel is not assigned to anybody
+                // if ( reply ) {
+                //     if ( ! pickupCoordination[parcel.id] ) {
+                //         console.log(`We agreed: I will do the pickup`, parcel.id);
+                //         pickupCoordination[parcel.id] = client.id; // assign parcel to me
+                //         currentIntention = client.move( 'down' );
+                //         let pickup = await currentIntention;
+                //         currentIntention = null;
+                //     } else {
+                //         console.log(
+                //             "I let the other agent pickup, but meanwhile he replied me back to pickup",
+                //             "Should we coordinate again?",
+                //             parcel.id
+                //         );
+                //     }
+                // } else {
+                //     console.log(`We agreed: teamMate ${teamAgentId} will do the pickup`, parcel.id);
+                // }
+            } else {
+                myAgent.push(bestOption[0])
+            }
+
         } else {
             logger.info("bestOption is go random")
 
@@ -336,6 +444,17 @@ function calculatePaths() {
         deliveries[i] = delivery
     }
 }
+
+client.onMsg(async (id, name, msg, reply) => {
+    if (id == config.vcarb_2.id) {
+        console.log(`Received message from ${name} with id ${id}: ${msg}`)
+        console.log(msg)
+        if (reply) {
+            reply("YES")
+        }
+    }
+})
+
 /*
 client.onAgentsSensing(agentLoop)
 client.onParcelsSensing(agentLoop)
