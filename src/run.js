@@ -367,7 +367,7 @@ async function agentLoop() {
                 })
 
                 if (reply) {
-                    console.log(`reply: ${reply}`)
+                    //console.log(`reply: ${reply}`)
                     if (reply == "YES") {
                         myAgent.push(bestOption[0])
                     } else {
@@ -433,7 +433,7 @@ function calculatePaths() {
 
 client.onMsg(async (id, name, msg, reply) => {
     const currentIntention = myAgent.current_intention?.predicate
-    console.log(currentIntention)
+    //console.log(currentIntention)
     if (currentIntention == null || currentIntention == undefined) {
         reply("YES")
     } else {
