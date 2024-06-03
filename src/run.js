@@ -4,10 +4,14 @@ import "./types.js"
 import { myAgent } from "./agent.js"
 import { logger } from "./logger.js"
 import config from "../config.js"
+import { default as argsParser } from "args-parser"
 
 import * as pf from "@cetfox24/pathfinding-js"
 
 export const client = new DeliverooApi()
+
+const args = argsParser(process.argv)
+let teamAgentId = args["teamId"]
 
 /** @type {} */
 const finder = new pf.AStar()
@@ -328,35 +332,38 @@ async function agentLoop() {
             (bestOptionPickUp1 || bestOptionPutDown)
         ) {
             let bestOption = []
-            if(potentialScorePickUp2 == 0){
-                if(potentialScorePickUp1 > potentialScorePutDown){
+            if (potentialScorePickUp2 == 0) {
+                if (potentialScorePickUp1 > potentialScorePutDown) {
                     bestOption.push(bestOptionPickUp1)
                     bestOption.push(bestOptionPutDown)
-                }else{
+                } else {
                     bestOption.push(bestOptionPutDown)
                     bestOption.push(bestOptionPickUp1)
                 }
-            }else{
-                if(potentialScorePutDown < potentialScorePickUp2){
+            } else {
+                if (potentialScorePutDown < potentialScorePickUp2) {
                     bestOption.push(bestOptionPickUp1)
                     bestOption.push(bestOptionPickUp2)
                     bestOption.push(bestOptionPutDown)
-                }else if(potentialScorePutDown > potentialScorePickUp2 && potentialScorePutDown < potentialScorePickUp1){
+                } else if (
+                    potentialScorePutDown > potentialScorePickUp2 &&
+                    potentialScorePutDown < potentialScorePickUp1
+                ) {
                     bestOption.push(bestOptionPickUp1)
                     bestOption.push(bestOptionPutDown)
                     bestOption.push(bestOptionPickUp2)
-                }else{
+                } else {
                     bestOption.push(bestOptionPutDown)
                     bestOption.push(bestOptionPickUp1)
                     bestOption.push(bestOptionPickUp2)
                 }
             }
-            
-            
-            if (client.id == config.vcarb_2.id && bestOption[0].action == "go_pick_up") {
-                const reply = await client.ask(config.vcarb_1.id, {
-                    action: "go_pick_up",
-                    parcelId: bestOption[0].id,
+
+            //if (client.id == config.vcarb_2.id) {
+            if (1) {
+                const reply = await client.ask(teamAgentId, {
+                    action: bestOption[0].action,
+                    id: bestOption[0].id,
                 })
 
                 if (reply) {
@@ -364,37 +371,16 @@ async function agentLoop() {
                     if (reply == "YES") {
                         myAgent.push(bestOption[0])
                     } else {
-                        if(bestOption.length > 1){
+                        if (bestOption.length > 1) {
                             myAgent.push(bestOption[1])
-                        }else{
+                        } else {
                             myAgent.push({ action: "go_random", id: "random" })
                         }
                     }
-                    //myAgent.push(bestOption)
                 }
-
-                // if I am allowed to pickup and parcel is not assigned to anybody
-                // if ( reply ) {
-                //     if ( ! pickupCoordination[parcel.id] ) {
-                //         console.log(`We agreed: I will do the pickup`, parcel.id);
-                //         pickupCoordination[parcel.id] = client.id; // assign parcel to me
-                //         currentIntention = client.move( 'down' );
-                //         let pickup = await currentIntention;
-                //         currentIntention = null;
-                //     } else {
-                //         console.log(
-                //             "I let the other agent pickup, but meanwhile he replied me back to pickup",
-                //             "Should we coordinate again?",
-                //             parcel.id
-                //         );
-                //     }
-                // } else {
-                //     console.log(`We agreed: teamMate ${teamAgentId} will do the pickup`, parcel.id);
-                // }
             } else {
                 myAgent.push(bestOption[0])
             }
-
         } else {
             logger.info("bestOption is go random")
 
@@ -446,12 +432,13 @@ function calculatePaths() {
 }
 
 client.onMsg(async (id, name, msg, reply) => {
-    if (id == config.vcarb_2.id) {
-        console.log(`Received message from ${name} with id ${id}: ${msg}`)
-        console.log(msg)
-        if (reply) {
-            reply("YES")
-        }
+    const currentIntention = myAgent.current_intention?.predicate
+    console.log(currentIntention)
+    if (currentIntention == null || currentIntention == undefined) {
+        reply("YES")
+    } else {
+        const equal = currentIntention.action == msg.action && currentIntention.id == msg.id
+        reply(equal ? "NO" : "YES")
     }
 })
 

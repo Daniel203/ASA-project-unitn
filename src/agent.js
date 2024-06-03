@@ -44,7 +44,7 @@ class Agent {
                     this.#last_rejected_intention = null
                 } catch (error) {
                     logger.warn(`${error}`)
-                    if (intention.predicate.id[0] == "D") {
+                    if (intention?.predicate?.id && intention?.predicate?.id.length > 0 && intention?.predicate?.id[0] == "D") {
                         this.#last_rejected_intention = intention
                         logger.error(
                             `last removed intention: ${JSON.stringify(this.last_rejected_intention.predicate)}`,
@@ -68,34 +68,38 @@ class Agent {
     }
 
     async push(predicate) {
-        logger.info(
-            `intention queue before: ${JSON.stringify(this.intention_queue.map((x) => x.predicate))}`,
-        )
+        try{
+            logger.info(
+                `intention queue before: ${JSON.stringify(this.intention_queue.map((x) => x.predicate))}`,
+            )
 
-        logger.info(`last intention: ${JSON.stringify(this.current_intention?.predicate)}`)
+            logger.info(`last intention: ${JSON.stringify(this.current_intention?.predicate)}`)
 
-        // TODO: check if it works
-        /*if (this.last_rejected_intention?.predicate?.id === predicate.id) {
-            logger.warn(`This intention has just got been rejected: ${JSON.stringify(predicate)}`)
-            return
-        }*/
+            // TODO: check if it works
+            /*if (this.last_rejected_intention?.predicate?.id === predicate.id) {
+                logger.warn(`This intention has just got been rejected: ${JSON.stringify(predicate)}`)
+                return
+            }*/
 
-        if (this.intention_queue.find((i) => i.predicate.id == predicate.id)) {
-            logger.warn(`Intention already in queue: ${JSON.stringify(predicate)}`)
-            return
+            if (this.intention_queue.find((i) => i.predicate.id == predicate.id)) {
+                logger.warn(`Intention already in queue: ${JSON.stringify(predicate)}`)
+                return
+            }
+
+            logger.info(`Intention not in queue: ${JSON.stringify(predicate)}`)
+
+            // keep only the last 5 elements, so if the last intention added is not valid,
+            // there is immediatly a new one to use
+            while (this.intention_queue.length > 0) {
+                var int = this.intention_queue.pop()
+                int.stop()
+            }
+
+            this.intention_queue.unshift(new Intention(this, predicate))
+            logger.warn(`Intentions: ${JSON.stringify(this.intention_queue.map((x) => x.predicate))}`)
+        }catch(error){
+            logger.error(error)
         }
-
-        logger.info(`Intention not in queue: ${JSON.stringify(predicate)}`)
-
-        // keep only the last 5 elements, so if the last intention added is not valid,
-        // there is immediatly a new one to use
-        while (this.intention_queue.length > 0) {
-            var int = this.intention_queue.pop()
-            int.stop()
-        }
-
-        this.intention_queue.unshift(new Intention(this, predicate))
-        logger.warn(`Intentions: ${JSON.stringify(this.intention_queue.map((x) => x.predicate))}`)
     }
 }
 
