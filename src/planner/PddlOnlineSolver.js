@@ -1,6 +1,6 @@
 import fetch from "node-fetch"
 import { sleep } from "../utils.js"
-import {logger} from "../logger.js"
+import { logger } from "../logger.js"
 import config from "../../config.js"
 
 const BASE_URL = config.pddlSolverURL
@@ -35,7 +35,7 @@ async function getPlanFetchUrl(pddlDomain, pddlProblem) {
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ domain: pddlDomain, problem: pddlProblem }),
+            body: JSON.stringify({ domain: pddlDomain, problem: pddlProblem, number_of_plans: 1 }),
         })
 
         if (!response.ok) {
@@ -64,17 +64,17 @@ async function getPlanFetchUrl(pddlDomain, pddlProblem) {
  * @returns {Promise<Object>}
  * @throws Will throw an error if the fetch fails or times out.
  */
-async function fetchPlan(fetchPlanUrl, maxAttempts = 10, baseDelay = 200) {
+async function fetchPlan(fetchPlanUrl, maxAttempts = 10, baseDelay = 100) {
     let attempts = 0
     let response
 
     const fetchWithRetry = async () => {
         const fetchResponse = await fetch(fetchPlanUrl, {
-            method: "POST",
+            method: "GET",
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ adaptor: "planning_editor_adaptor" }),
+            // body: JSON.stringify({ adaptor: "planning_editor_adaptor" }),
         })
 
         if (!fetchResponse.ok) {
@@ -99,7 +99,7 @@ async function fetchPlan(fetchPlanUrl, maxAttempts = 10, baseDelay = 200) {
             response = await fetchWithRetry()
 
             if (response.status !== "PENDING") {
-                return response.plans[0]
+                return response.result.output.sas_plan
             }
         } catch (error) {
             logger.error(`Attempt ${attempts} failed: ${error.message}`)
@@ -118,22 +118,19 @@ async function fetchPlan(fetchPlanUrl, maxAttempts = 10, baseDelay = 200) {
  * @returns {PddlPlanStep[]}
  */
 function processPlan(planResult) {
+    var lines = planResult.split("\n")
+    lines = lines.map((line) => line.replace("(", "").replace(")", "").split(" "))
+    lines.pop()
+    lines.pop()
+
     /** @type {PddlPlanStep[]} */
-    const plan = []
+    var plan = []
 
-    if (planResult.result.plan) {
-        /** @type {Array<{name: string, action: string}>} */
-        const plans = planResult.result.plan
+    for (let /**@type {string}*/ line of lines) {
+        var action = line.shift()
+        var args = line
 
-        for (let step of plans) {
-            let line = step.name || step
-            line = line.replace("(", "").replace(")", "").split(" ")
-
-            const action = line.shift()
-            const args = line
-
-            plan.push({ parallel: false, action: action, args: args })
-        }
+        plan.push({ parallel: false, action: action, args: args })
     }
 
     return plan
