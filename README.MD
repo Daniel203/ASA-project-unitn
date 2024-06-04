@@ -7,7 +7,7 @@
 ## Introduction
 Welcome to Deliveroo's Unitn challenge! This project aims to develop intelligent agents capable of navigating through a randomized map to pick up blocks and deliver them to designated locations. The challenge consists of multiple stages (Q1, Q2, Q3, etc.), where agents compete to gather the most blocks to advance to the next stage.
 
-## First Challenge: Agent Movement and Basic Actions 
+## First Challenge: Agent Movement and Basic Actions [6th Position] 
 The first challenge focuses on implementing the basic functionalities of the agent, including movement, pickup, and putdown actions. Key features include:
 
 - **Agent Movement**: Implement agent movement on a grid-based map, allowing navigation in four directions (up, down, left, right).
@@ -15,7 +15,7 @@ The first challenge focuses on implementing the basic functionalities of the age
 - **Map Management**: Develop a system to represent the map with different block types (e.g., pickup zones, delivery zones, neutral blocks) using numerical values.
 - **Planning**: Implement a planning system (e.g., A*) to determine the agent's actions based on the current map state and block locations.
 
-## Second Challenge: Multi-Agent Planning and Communication
+## Second Challenge: Multi-Agent Planning and Communication [4th Position] 
 The second challenge will involve the following tasks:
 
 - **Creation of Agent 2**: Develop a second agent with similar capabilities to cooperate with the first agent.
