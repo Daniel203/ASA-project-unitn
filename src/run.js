@@ -1,5 +1,5 @@
 import { DeliverooApi } from "@unitn-asa/deliveroo-js-client"
-import { sleep, getOptionScore } from "./utils.js"
+import { sleep, getOptionScore, distance } from "./utils.js"
 import "./types.js"
 import { myAgent } from "./agent.js"
 import { logger } from "./logger.js"
@@ -22,7 +22,6 @@ export var maxParcels = 0
 export var distanceVisibility = 0
 export var agentObservationDistance
 
-//const IS_CAPO = client.id === vcarb_1.id
 
 client.onConfig((x) => {
     distanceVisibility = parseInt(x.PARCELS_OBSERVATION_DISTANCE)
@@ -150,6 +149,53 @@ async function agentLoop() {
         return
     }
 
+    //team working
+    if(myParcels.length > 0){
+        const reply = await client.ask(teamAgentId, {
+            action: 'position',
+            pos: me,
+        })
+
+        if (reply) {
+            if(reply != 'null'){
+                //console.log(reply)
+                for(let i=0; i<10; i++){
+                    await client.move(reply)
+                }
+                await client.putdown()
+                var direction = ''
+                if(reply == 'up'){
+                    direction = 'down'
+                }else if(reply == ' down'){
+                    direction = 'up'
+                }else if(reply == ' right'){
+                    direction = 'left'
+                }else{
+                    direction = 'right'
+                }
+                for(let i=0; i<10; i++){
+                    await client.move(direction)
+                }
+                const reply1 = await client.ask(teamAgentId, {
+                    action: 'putdown1',
+                    dir: direction,
+                })
+                if(reply1){
+                    if(reply1 == "delivered"){
+                        const goRandomOption = {
+                            action: "go_random",
+                            id: "random",
+                        }
+            
+                        myAgent.push(goRandomOption) 
+                    }
+                }
+            }else{
+                myAgent.push(bestOptionPutDown)
+            }
+        }
+    }
+
     calculatePaths()
 
     /** @type {Array<Option>} */
@@ -255,7 +301,7 @@ async function agentLoop() {
                 potentialScorePickUp1 = 0
             } else {
                 if (speedParcel == 0) {
-                    potentialScorePickUp1 = 1000 - bestOptionPickUp1.args.path.length //distance(me, bestOptionPickUp)
+                    potentialScorePickUp1 = 1000 - bestOptionPickUp1.args.path.length 
                 } else {
                     if (deliveries.length > 0) {
                         let deliveryNearby = [...deliveries.values()].sort(
@@ -268,11 +314,6 @@ async function agentLoop() {
                                 bestOptionPickUp1.args.path.length +
                                 bestOptionPickUp1.value -
                                 deliveryNearby.path.length,
-                            //bestOptionPickUp1.value / (distance(me, bestOptionPickUp) * minDistanceDel),
-                            /*actualScoreMyParcels -
-                                (distance(me, bestOptionPickUp) * speed) / 1000 +
-                                bestOptionPickUp1.value -
-                                (minDistanceDel * speedParcel) / 1000,*/
                         )
                     }
                 }
@@ -284,7 +325,7 @@ async function agentLoop() {
                 potentialScorePickUp2 = 0
             } else {
                 if (speedParcel == 0) {
-                    potentialScorePickUp2 = 1000 - bestOptionPickUp2.args.path.length //distance(me, bestOptionPickUp)
+                    potentialScorePickUp2 = 1000 - bestOptionPickUp2.args.path.length 
                 } else {
                     if (deliveries.length > 0) {
                         let deliveryNearby = [...deliveries.values()].sort(
@@ -297,11 +338,6 @@ async function agentLoop() {
                                 bestOptionPickUp2.args.path.length +
                                 bestOptionPickUp2.value -
                                 deliveryNearby.path.length,
-                            //bestOptionPickUp1.value / (distance(me, bestOptionPickUp) * minDistanceDel),
-                            /*actualScoreMyParcels -
-                                (distance(me, bestOptionPickUp) * speed) / 1000 +
-                                bestOptionPickUp1.value -
-                                (minDistanceDel * speedParcel) / 1000,*/
                         )
                     }
                 }
@@ -313,7 +349,7 @@ async function agentLoop() {
                 bestOptionPutDown = 0
             } else {
                 if (speedParcel == 0) {
-                    potentialScorePutDown = 1000 - 0 - bestOptionPutDown.args.path.length //distance(me, bestOptionPutDown)
+                    potentialScorePutDown = 1000 - 0 - bestOptionPutDown.args.path.length 
                 } else {
                     potentialScorePutDown = Math.max(
                         0,
@@ -359,28 +395,24 @@ async function agentLoop() {
                 }
             }
 
-            //if (client.id == config.vcarb_2.id) {
-            if (1) {
-                const reply = await client.ask(teamAgentId, {
-                    action: bestOption[0].action,
-                    id: bestOption[0].id,
-                })
+            const reply = await client.ask(teamAgentId, {
+                action: bestOption[0].action,
+                id: bestOption[0].id,
+            })
 
-                if (reply) {
-                    //console.log(`reply: ${reply}`)
-                    if (reply == "YES") {
-                        myAgent.push(bestOption[0])
+            if (reply) {
+                //console.log(`reply: ${reply}`)
+                if (reply == "YES") {
+                    myAgent.push(bestOption[0])
+                } else {
+                    if (bestOption.length > 1) {
+                        myAgent.push(bestOption[1])
                     } else {
-                        if (bestOption.length > 1) {
-                            myAgent.push(bestOption[1])
-                        } else {
-                            myAgent.push({ action: "go_random", id: "random" })
-                        }
+                        myAgent.push({ action: "go_random", id: "random" })
                     }
                 }
-            } else {
-                myAgent.push(bestOption[0])
             }
+        
         } else {
             logger.info("bestOption is go random")
 
@@ -432,21 +464,46 @@ function calculatePaths() {
 }
 
 client.onMsg(async (id, name, msg, reply) => {
-    const currentIntention = myAgent.current_intention?.predicate
-    //console.log(currentIntention)
-    if (currentIntention == null || currentIntention == undefined) {
-        reply("YES")
-    } else {
-        const equal = currentIntention.action == msg.action && currentIntention.id == msg.id
-        reply(equal ? "NO" : "YES")
+    if(id == config.vcarb_1.id || id == config.vcarb_2.id){
+        if(msg.action = 'position' && msg.pos != undefined){
+            if(distance({x: Math.round(me.x), y: Math.round(me.y)} , {x: Math.round(msg.pos.x), y: Math.round(msg.pos.y)}) == 1){
+                var direction = ""
+                if(Math.round(me.x) > Math.round(msg.pos.x)){
+                    direction = "right"
+                }else if(Math.round(me.x) < Math.round(msg.pos.x)){
+                    direction = "left"
+                }else if(Math.round(me.y) > Math.round(msg.pos.y)){
+                    direction = "up"
+                }else{
+                    direction = "down"
+                }
+                for(let i=0; i<10; i++){
+                    await client.move(direction)
+                }
+                reply(direction)
+            }else{
+                reply("null")
+            }
+        }else if(msg.action == "putdown1"){
+            for(let i=0; i<10; i++){
+                await client.move(msg.dir)
+            }
+            await client.pickup()
+            myAgent.push(bestOptionPutDown)
+            reply("delivered")
+        }else{
+            const currentIntention = myAgent.current_intention?.predicate
+            //console.log(currentIntention)
+            if (currentIntention == null || currentIntention == undefined) {
+                reply("YES")
+            } else {
+                const equal = currentIntention.action == msg.action && currentIntention.id == msg.id
+                reply(equal ? "NO" : "YES")
+            }
+        }
     }
 })
 
-/*
-client.onAgentsSensing(agentLoop)
-client.onParcelsSensing(agentLoop)
-client.onYou(agentLoop)
-*/
 
 const run = async () => {
     for (;;) {
